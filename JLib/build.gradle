@@ -34,17 +34,37 @@ sourceSets {
     }
 }
 
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 
 group = 'com.denizensoft.jlib'
 version = '1.0-SNAPSHOT'
 
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            pom.artifactId = 'jlib-jdk-1-8'
-            repository(url: "file://"+System.getProperty("user.home")+"/.m2/repository")
-        }
-    }
+repositories {
+	maven {
+		url 'http://huxley:8081/artifactory'
+	}	
+}
+
+publishing {
+
+	repositories {
+
+		maven {
+			credentials {
+				username 'sjm'
+				password 'sjm.rds.666'
+			}
+			url "http://huxley:8081/artifactory/libs-snapshot-local"
+		}
+
+	}
+
+	publications {
+		mavenJava(MavenPublication) {
+			from components.java
+			artifactId = 'jlib-jdk-1-8'
+		}
+	}
+
 }
 
