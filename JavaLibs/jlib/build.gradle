@@ -120,4 +120,3 @@ artifactory {
 	clientConfig.info.setBuildName('JLib-JDK')
 	clientConfig.info.setBuildNumber('' + new java.util.Random(System.currentTimeMillis()).nextInt(20000))
 }
-
