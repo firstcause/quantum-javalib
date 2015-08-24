@@ -8,7 +8,7 @@ version = '1.0.0'
 dependencies {
 	compile fileTree(include: ['*.jar'], dir: 'libs')
 		
-	compile ('com.denizensoft.jlib:jar-jdk-1-8:1.0.0') { 
+	compile ('com.denizensoft.jlib:jlib-j001:1.0.0') { 
 		transitive = true
 	}
 }
@@ -36,7 +36,7 @@ publishing {
                                 classifier "sources"
                         }
 						
-						artifactId 'jar-jdk-1-8'
+						artifactId 'insurgent-j001'
                 }
         }
 }

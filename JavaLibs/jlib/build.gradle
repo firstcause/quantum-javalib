@@ -40,7 +40,7 @@ publishing {
                                 classifier "sources"
                         }
 						
-						artifactId 'jar-jdk-1-8'
+						artifactId 'jlib-j001'
                 }
         }
 }
