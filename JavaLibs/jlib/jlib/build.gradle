@@ -30,7 +30,7 @@ task javadocJar(type: Jar, dependsOn: javadoc) {
 publishing {
         publications {
                 mavenJava(MavenPublication) {
-					from components.java
+                        from components.java
 
                         artifact(javadocJar) {
                                 classifier "javadoc"
@@ -40,7 +40,7 @@ publishing {
                                 classifier "sources"
                         }
 						
-						artifactId 'jlib-jdk-1-8'
+						artifactId 'jlib-jdk-1-7'
                 }
         }
 }
