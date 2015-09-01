@@ -36,7 +36,7 @@ publishing {
                                 classifier "sources"
                         }
 						
-					artifactId 'insurgent-jdk-1-8'
+					artifactId 'insurgent-jdk-1-7'
                 }
         }
 }
