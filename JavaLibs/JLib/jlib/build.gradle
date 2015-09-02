@@ -7,9 +7,6 @@ version = '1.0.0'
 
 dependencies {
 	compile fileTree(include: ['*.jar'], dir: 'libs')
-	testCompile ('junit:junit:4.12') {
-		transitive = true
-	}
 }
 
 task sourceJar(type: Jar) {
@@ -40,7 +37,7 @@ publishing {
                                 classifier "sources"
                         }
 						
-						artifactId 'jlib-jdk-1-7'
+						artifactId 'jlib-1-7'
                 }
         }
 }

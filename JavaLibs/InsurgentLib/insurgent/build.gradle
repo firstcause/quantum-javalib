@@ -8,9 +8,7 @@ version = '1.0.0'
 dependencies {
 	compile fileTree(include: ['*.jar'], dir: 'libs')
 		
-	compile ('com.denizensoft.jlib:jlib-j001:1.0.0') { 
-		transitive = true
-	}
+	compile (group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0')
 }
 
 task sourceJar(type: Jar, dependsOn: classes) {
@@ -36,7 +34,7 @@ publishing {
                                 classifier "sources"
                         }
 						
-					artifactId 'insurgent-jdk-1-7'
+						artifactId 'insurgent-1-7'
                 }
         }
 }
