@@ -7,6 +7,9 @@ version = '1.0.0'
 
 dependencies {
 	compile fileTree(include: ['*.jar'], dir: 'libs')
+		
+    testCompile (group: 'junit', name: 'junit', version: '4.12', transitive: true )
+		
 }
 
 task sourceJar(type: Jar) {
