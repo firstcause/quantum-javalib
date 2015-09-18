@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/mutinybench.iml" filepath="$PROJECT_DIR$/mutinybench.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mutinyxml/mutinyxml.iml" filepath="$PROJECT_DIR$/mutinyxml/mutinyxml.iml" />
+    </modules>
+  </component>
+</project>

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<appDef name="mutiny-test"
+        sometag1="some text 1"
+        sometag2="some text 2">
+    Here is the text?
+</appDef>

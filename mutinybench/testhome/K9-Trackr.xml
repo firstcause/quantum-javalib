@@ -1,0 +1,272 @@
+<?xml version="1.0"?>
+<appDef>
+    <schemaDef>
+        <tableDef name='StateToken'>
+            <column name='_id'>
+                <type>
+                    INTEGER PRIMARY KEY
+                </type>
+            </column>
+            <column name='UpdateStamp'>
+                <type>
+                    TEXT DEFAULT CURRENT_TIMESTAMP
+                </type>
+            </column>
+            <column name='TokenKey'>
+                <type>
+                    TEXT NOT NULL UNIQUE
+                </type>
+            </column>
+            <column name='TokenValue'>
+                <type>
+                    TEXT
+                </type>
+            </column>
+            <column name='Category'>
+                <type>
+                    TEXT NOT NULL DEFAULT 'Token'
+                </type>
+            </column>
+        </tableDef>
+
+        <tableDef name='Users'>
+            <column name='_id'>
+                <type>
+                    INTEGER PRIMARY KEY
+                </type>
+            </column>
+            <column name='FirstName'>
+                <type>
+                    TEXT NOT NULL
+                </type>
+            </column>
+            <column name='LastName'>
+                <type>
+                    TEXT NOT NULL
+                </type>
+            </column>
+            <column name='NickName'>
+                <type>
+                    TEXT
+                </type>
+            </column>
+            <column name='AgentType'>
+                <type>
+                    TEXT
+                </type>
+                <defaultValues>
+                    LawEnforcement,Military,Civilian
+                </defaultValues>
+            </column>
+            <column name='CertLevel'>
+                <type>
+                    TEXT
+                </type>
+                <defaultValues>
+                    Level 1,Level 2,Level 3
+                </defaultValues>
+            </column>
+            <column name='AgentTitle'>
+                <type>
+                    TEXT
+                </type>
+            </column>
+            <column name='AgencyName'>
+                <type>
+                    TEXT
+                </type>
+            </column>
+            <column name='AgencyBranch'>
+                <type>
+                    TEXT
+                </type>
+            </column>
+            <column name='AgencyUnit'>
+                <type>
+                    TEXT
+                </type>
+            </column>
+            <column name='AgencyPhone'>
+                <type>
+                    TEXT
+                </type>
+            </column>
+            <column name='FkAgencyAddressId'>
+                <type>
+                    INTEGER DEFAULT 0
+                </type>
+            </column>
+
+            <FkReference name='FkAgencyAddressId'>
+                table:MapAddress,column:_id
+            </FkReference>
+
+        </tableDef>
+
+    </schemaDef>
+
+    <formDef>
+
+    </formDef>
+
+    <functionDef name="doTrainerMode">
+
+        <buttonSwitch>
+            <button>
+                <action>
+                </action>
+            </button>
+        </buttonSwitch>
+
+    </functionDef>
+
+    <functionDef name="doDeployMode">
+
+        <buttonSwitch icon="icon_deploy_mode" title="Choose Deployment Type">
+
+            <button icon="icon_deploy_admin" text="Administrative">
+                <action>
+                </action>
+            </button>
+
+            <button icon="icon_deploy_assist" text="Assist">
+                <action>
+                </action>
+            </button>
+
+            <button icon="icon_deploy_patrol" text="Patrol">
+                <action>
+                </action>
+            </button>
+
+            <button icon="icon_deploy_public_service" text="Public Service">
+                <action>
+                </action>
+            </button>
+
+            <button icon="icon_deploy_pursuit" text="Pursuit">
+                <action>
+                </action>
+            </button>
+
+            <button icon="icon_deploy_search" text="Search">
+                <action>
+                </action>
+            </button>
+
+            <button icon="icon_deploy_track" text="Track">
+                <action>
+                </action>
+            </button>
+
+        </buttonSwitch>
+
+    </functionDef>
+
+    <functionDef name='doAppMode'>
+
+        <buttonSwitch icon="icon_app_menu" title="Home">
+
+            <button icon="icon_mode_deploy" text="Deployment">
+                <action>
+                    invokeFunction:doDeployMode
+                </action>
+            </button>
+
+            <button icon="icon_mode_training" text="Training">
+                <action>
+                    invokeFunction:doTrainingMode
+                </action>
+            </button>
+
+            <button icon="icon_mode_medical" text="Medical">
+                <action>
+                    invokeFunction:doMedicalMode
+                </action>
+            </button>
+
+            <button icon="icon_mode_expenses" text="Expenses">
+                <action>
+                    invokeFunction:doTrainingMode
+                </action>
+            </button>
+
+        </buttonSwitch>
+    </functionDef>
+
+    <functionDef name='doInitSetup'>
+        <splashPage>
+            one_moment_please
+        </splashPage>
+    </functionDef>
+
+    <functionDef name='getConfigState'>
+        <getColumnValue>
+            table:StateToken,column:TokenValue,where:TokenKey='CONFIGSTATE'
+        </getColumnValue>
+    </functionDef>
+
+    <functionDef name='putConfigState'>
+        <putColumnValue>
+            table:StateToken,column:TokenValue,where:TokenKey='CONFIGSTATE'
+        </putColumnValue>
+    </functionDef>
+
+    <functionDef name='showWelcomePage'>
+
+        <showHtmlPage page="welcome_page">
+            <waitHtmlButtonClick>
+                <functionCall>
+                    <functionName>
+                        putConfigState
+                    </functionName>
+                    <parameter>
+                        TokenValue:config_mode
+                    </parameter>
+                </functionCall>
+            </waitHtmlButtonClick>
+        </showHtmlPage>
+
+    </functionDef>
+
+    <functionDef name='entryPoint'>
+
+        <switchLoop action='getConfigState'>
+
+            <branch token='factory_reset'>
+                <functionCall>
+                    doInitSetup
+                </functionCall>
+            </branch>
+
+            <branch token='legal'>
+                <functionCall>
+                    doShowLegalPage
+                </functionCall>
+            </branch>
+
+            <branch token='welcome_page'>
+                <functionCall>
+                    doShowWelcomePage
+                </functionCall>
+            </branch>
+
+            <branch token='config_mode'>
+            </branch>
+
+            <branch token='prefs_mode'>
+            </branch>
+
+            <branch token='package_update'>
+            </branch>
+
+            <branch token='app_mode'>
+                <functionCall>
+                    doAppMode
+                </functionCall>
+            </branch>
+
+        </switchLoop>
+
+    </functionDef>
+</appDef>
