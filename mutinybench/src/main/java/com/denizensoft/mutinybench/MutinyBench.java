@@ -227,6 +227,8 @@ public class MutinyBench
 				try
 				{
 					MutinyElement element = MutinyXml.parseFile(args[1]);
+
+					System.out.printf("Element name: %s\n",element.attribute("name"));
 				}
 				catch(FileNotFoundException e)
 				{

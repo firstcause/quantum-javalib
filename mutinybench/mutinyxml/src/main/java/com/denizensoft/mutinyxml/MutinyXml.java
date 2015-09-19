@@ -11,7 +11,7 @@ public class MutinyXml
 {
 	public static MutinyElement parseReader(Reader reader)
 	{
-		MutinyElement element = new MutinyElement(reader);
+		MutinyElement element = new MutinyElement(null,reader);
 
 		return element;
 	}

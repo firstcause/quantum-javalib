@@ -17,13 +17,15 @@ import java.util.regex.Pattern;
 /**
  * Created by sjm on 9/18/15.
  */
-public class MutinyElement extends HashMap<String, HashMap<String, MutinyElement>>
+public class MutinyElement
 {
-	protected String mTag = null;
+	protected String mTag = null, mText = null;
 
 	protected MutinyElement mParent = null;
 
 	protected Map<String, String> mAttributeMap = null;
+
+	protected HashMap<String,HashMap<String,MutinyElement>> mChildMap = null;
 
 	protected Logger LOGGER = Logger.getLogger(MutinyElement.class.getName());
 
@@ -56,7 +58,7 @@ public class MutinyElement extends HashMap<String, HashMap<String, MutinyElement
 		}
 		else
 		{
-			HashMap<String,MutinyElement> tagMap = get(stTag);
+			HashMap<String,MutinyElement> tagMap = mChildMap.get(stTag);
 
 			if(tagMap != null)
 			{
@@ -107,97 +109,17 @@ public class MutinyElement extends HashMap<String, HashMap<String, MutinyElement
 
 				mAttributeMap.put(s1, s2);
 			}
-
-			for(Entry<String, String> entry : mAttributeMap.entrySet())
-			{
-				logInfo(String.format("%s - %s\n", entry.getKey(), entry.getValue()), parser.getDepth() + 1);
-			}
-		}
-	}
-
-	protected void parseTags(XmlPullParser parser)
-	{
-		try
-		{
-			int nEventType = 0;
-
-			while((nEventType = parser.getEventType()) != XmlPullParser.END_DOCUMENT)
-			{
-				System.out.printf("%s", StringUtils.repeat("\t", parser.getDepth()));
-
-				switch(nEventType)
-				{
-					case XmlPullParser.START_DOCUMENT:
-					{
-						LOGGER.info("----> SOD <----\n");
-					}
-					break;
-
-					case XmlPullParser.START_TAG:
-					{
-						MutinyElement element = new MutinyElement(parser);
-
-						if(element.attributes() != null && element.attributes().containsKey("name"))
-						{
-							HashMap<String, MutinyElement> tagMap = get(element.tag());
-
-							if(tagMap == null)
-							{
-								tagMap = new HashMap<>();
-
-								put(element.tag(), tagMap);
-							}
-
-							tagMap.put(element.attribute("name"), element);
-						}
-					}
-					break;
-
-					case XmlPullParser.END_TAG:
-					{
-						if(mAttributeMap.containsKey("name"))
-						{
-							logInfo(String.format(Locale.getDefault(), "End: <%s:%s>",
-									mTag, mAttributeMap.get("name")), parser.getDepth());
-						}
-						else
-						{
-							logInfo(String.format(Locale.getDefault(), "End: <%s:(noname)>",
-									mTag), parser.getDepth());
-						}
-					}
-					return;
-
-					case XmlPullParser.TEXT:
-					{
-						logInfo(String.format(Locale.getDefault(), "TEXT: %s", parser.getText()), parser.getDepth());
-					}
-					break;
-
-				}
-
-				parser.next();
-			}
-
-			LOGGER.info("----> EOD <----\n");
-
-		}
-		catch(XmlPullParserException e)
-		{
-			throw new RuntimeException("MutinyXml.Element - parser exception in parseTags()", e);
-		}
-		catch(IOException e)
-		{
-			throw new RuntimeException("MutinyXml.Element - io exception in parseTags()", e);
 		}
 	}
 
 	protected void parseElement(XmlPullParser parser)
 	{
+		int nEventType;
+
 		try
 		{
 			if(parser.getEventType() != XmlPullParser.START_TAG)
-				throw new RuntimeException("MutinyXml.Element - parser state error in constructor(parser)", null);
+				throw new RuntimeException("MutinyXml.Element - parser state error, expected SOT", null);
 
 			mTag = parser.getName();
 
@@ -205,18 +127,62 @@ public class MutinyElement extends HashMap<String, HashMap<String, MutinyElement
 
 			parseAttributes(parser);
 
-			if(mAttributeMap != null && mAttributeMap.containsKey("name"))
+			do
 			{
-				logInfo(String.format(Locale.getDefault(), "Name: %s", mAttributeMap.get("name")), parser.getDepth());
+				nEventType = parser.next();
 
-				parser.next();
+				switch(nEventType)
+				{
+					case XmlPullParser.START_TAG:
+					{
+						MutinyElement element = new MutinyElement(this,parser);
 
-				parseTags(parser);
-			}
-			else
+						if(element.attributes() == null || !element.attributes().containsKey("name"))
+						{
+							logInfo("-------------------> Discarding an unnamed element! <------------------",
+									parser.getDepth());
+
+							return;
+						}
+
+						if(mChildMap == null)
+							mChildMap = new HashMap<String,HashMap<String, MutinyElement>>();
+
+						HashMap<String, MutinyElement> tagMap = mChildMap.get(element.tag());
+
+						if(tagMap == null)
+						{
+							tagMap = new HashMap<>();
+
+							mChildMap.put(element.tag(), tagMap);
+						}
+
+						tagMap.put(element.attribute("name"), element);
+					}
+					break;
+
+					case XmlPullParser.TEXT:
+					{
+						String s1 = parser.getText().trim();
+
+						if(s1.length() != 0)
+							mText = s1;
+
+						logInfo(String.format(Locale.getDefault(), "TEXT: %s", mText), parser.getDepth());
+					}
+					break;
+
+				}
+
+			} while(nEventType != XmlPullParser.END_TAG);
+
+			for(Map.Entry<String, String> entry : mAttributeMap.entrySet())
 			{
-				logInfo(String.format(Locale.getDefault(), "Start: <%s:(noname)>",mTag), parser.getDepth());
+				logInfo(String.format("%s - %s\n", entry.getKey(), entry.getValue()), parser.getDepth() + 1);
 			}
+
+			logInfo(String.format(Locale.getDefault(), "End: </%s>", mTag), parser.getDepth());
+
 		}
 		catch(XmlPullParserException e)
 		{
@@ -228,13 +194,17 @@ public class MutinyElement extends HashMap<String, HashMap<String, MutinyElement
 		}
 	}
 
-	public MutinyElement(XmlPullParser parser)
+	public MutinyElement(MutinyElement parentElement, XmlPullParser parser)
 	{
+		mParent = parentElement;
+
 		parseElement(parser);
 	}
 
-	public MutinyElement(Reader reader)
+	public MutinyElement(MutinyElement parentElement,Reader reader)
 	{
+		mParent = parentElement;
+
 		MXParser parser = new MXParser();
 
 		try
@@ -242,7 +212,7 @@ public class MutinyElement extends HashMap<String, HashMap<String, MutinyElement
 			parser.setInput(reader);
 
 			if(parser.getEventType() != XmlPullParser.START_DOCUMENT)
-				throw new RuntimeException("MutinyXml.Element - parser state error in constructor(reader)", null);
+				throw new RuntimeException("MutinyXml.Element - Expected SOD in constructor(reader)", null);
 
 			parser.next();
 
