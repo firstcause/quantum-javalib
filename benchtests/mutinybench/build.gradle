@@ -1,0 +1,98 @@
+apply plugin: 'java'
+
+group 'com.denizensoft.mutinybench'
+version '1.0.0'
+
+sourceCompatibility = 1.5
+
+dependencies {
+    testCompile(group: 'junit', name: 'junit', version: '4.11')
+
+    compile(group: 'org.apache.commons', name: 'commons-lang3', version: '3.4')
+
+    compile(group: 'xmlpull', name: 'xmlpull', version: '1.1.3.4d_b4_min')
+
+    compile(group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0')
+
+    // compile(group: 'org.apache.servicemix.bundles', name: 'org.apache.servicemix.bundles.xmlpull', version: '1.1.3.4a_1')
+
+	// compile(group: 'net.sourceforge.jadex', name: 'jadex-android-xmlpull', version: '2.3')
+
+	// compile(group: 'org.kie.modules', name: 'xmlpull', version: '6.3.0.CR2')
+}
+
+artifactory {
+    contextUrl = "${artifactory_contextUrl}"
+
+    publish {
+
+        repository {
+            repoKey = 'libs-release-local'
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+        }
+
+        defaults {
+            // This closure defines defaults for all 'artifactoryPublish' tasks of all projects the plugin is applied to
+            // Optional list of publications (names or objects) to publish.
+            //
+            publications ('mavenJava')
+
+            // properties = ['qa.level': 'basic', 'q.os': 'win32, deb, osx']  //Optional map of properties to attach to all published artifacts
+            /*
+				The properties closure in the "defaults" task uses the following syntax:
+				properties {
+					publicationName 'group:module:version:classifier@type', key1:'value1', key2:'value2', ...
+				}
+				publicationName: A valid name for a publication of the project. You can use all to apply the properties to all publications.
+				group:module:version:classifier@type: A filter that specifies the artifacts to which properties should be attached. 
+				The filter may contain wildcards: * for all characters or ? for a single character.
+				key:'value': A list of key/value properties that will be attached to to the published artifacts matching the filter. 
+			properties {
+				//Optional closure to attach properties to artifacts based on a list of artifact patterns per project publication
+				mavenJava '*:*:*:*@*', platform: ‘java-jdk’
+
+				//The property platform=linux,win64 will be set on all artifacts in foo publication
+				//The property key1=val1 will be set on all artifacts part of the mavenJava publication and with group org.jfrog
+				//mavenJava 'org.jfrog:*:*:*@*', key1: 'val1'
+
+				//The properties key2 and key3 will be set on all published artifacts (all publications) with group:artifact:version 
+				//equal to org.jfrog:shared:1.?
+				// all 'org.jfrog:shared:1.?:*@*', key2: 'val2', key3: 'val3'
+			}
+			*/
+
+            publishBuildInfo = true
+            publishArtifacts = true
+            publishPom = true
+        }
+    }
+
+    resolve {
+        repository {
+            repoKey = 'jcenter'
+            maven = true
+        }
+
+        repository {
+            repoKey = 'libs-release'
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+            maven = true
+        }
+
+        repository {
+            repoKey = 'libs-release-local'
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+            maven = true
+        }
+
+    }
+
+    // Redefine basic properties of the build info object
+    clientConfig.setIncludeEnvVars(true)
+    clientConfig.info.addEnvironmentProperty('test.adding.dynVar',new java.util.Date().toString())
+    clientConfig.info.setBuildName('MutinyBench')
+    clientConfig.info.setBuildNumber('' + new java.util.Random(System.currentTimeMillis()).nextInt(20000))
+}
