@@ -1,7 +1,23 @@
 <?xml version="1.0"?>
 
-<appDef name="mutiny-test"
-        sometag1="some text 1"
-        sometag2="some text 2">
-    Here is the text?
-</appDef>
+<MutinyApp name="mutiny_test"
+        entrypoint="showMenu('/mode_menu');" >
+
+    <MenuDef name="mode_menu">
+        <MenuItem onClick="showMenu('/trainer_mode')">
+            menu_trainer_mode
+        </MenuItem>
+        <MenuItem onClick="showMenu('/patrol_mode')">
+            menu_patrol_mode
+        </MenuItem>
+    </MenuDef>
+
+    <MenuDef name="patrol_mode">
+        <MenuItem onClick="doSomething(someparameter)">
+            menu_administrative
+        </MenuItem>
+        <MenuItem onClick="doSomething(someparameter)">
+            menu_new_deployment
+        </MenuItem>
+    </MenuDef>
+</MutinyApp>

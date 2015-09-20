@@ -2,6 +2,7 @@ package com.denizensoft.mutinybench;
 
 import com.denizensoft.mutinyxml.MutinyElement;
 import com.denizensoft.mutinyxml.MutinyXml;
+
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -22,6 +23,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MutinyBench
@@ -227,6 +229,17 @@ public class MutinyBench
 				try
 				{
 					MutinyElement element = MutinyXml.parseFile(args[1]);
+
+					String stEntryPoint = element.attribute("entrypoint");
+
+					Pattern pattern = Pattern.compile("([a-zA-Z0-9]+)\\((.*)\\);");
+
+					Matcher matcher = pattern.matcher(stEntryPoint);
+
+					if(matcher.matches())
+					{
+						System.out.printf("Action: %s Parameter: %s\n",matcher.group(1),matcher.group(2));
+					}
 
 					System.out.printf("Element name: %s\n",element.attribute("name"));
 				}
