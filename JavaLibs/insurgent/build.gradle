@@ -2,29 +2,25 @@ apply plugin: 'java'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
-group = 'com.denizensoft.jlib'
+group = 'com.denizensoft.insurgent'
 version = '1.0.0'
 
 dependencies {
 	compile fileTree(include: ['*.jar'], dir: 'libs')
 		
-    testCompile (group: 'junit', name: 'junit', version: '4.12', transitive: true )
+	testCompile (group: 'junit', name: 'junit', version: '4.12', transitive: true )
 		
+	compile (group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0', changing: true, transitive: true )
 }
 
-task sourceJar(type: Jar) {
-	
+task sourceJar(type: Jar, dependsOn: classes) {
 	from sourceSets.main.allJava
-		
-	classifier "sources"
-		
+	classifier "sources"	
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
-	
-    from javadoc.destinationDir
-		
-	classifier = 'javadoc'
+        classifier = 'javadoc'
+        from javadoc.destinationDir
 }
 
 publishing {
@@ -40,7 +36,7 @@ publishing {
                                 classifier "sources"
                         }
 						
-						artifactId 'jlib-1-7'
+						artifactId 'insurgent-1-7'
                 }
         }
 }
@@ -117,6 +113,6 @@ artifactory {
 	// Redefine basic properties of the build info object
 	clientConfig.setIncludeEnvVars(true)
 	clientConfig.info.addEnvironmentProperty('test.adding.dynVar',new java.util.Date().toString())
-	clientConfig.info.setBuildName('JLib-JDK')
+	clientConfig.info.setBuildName('Insurgent-JDK')
 	clientConfig.info.setBuildNumber('' + new java.util.Random(System.currentTimeMillis()).nextInt(20000))
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/JavaLibs.iml" filepath="$PROJECT_DIR$/JavaLibs.iml" />
+      <module fileurl="file://$PROJECT_DIR$/insurgent/insurgent.iml" filepath="$PROJECT_DIR$/insurgent/insurgent.iml" />
+      <module fileurl="file://$PROJECT_DIR$/jlib/jlib.iml" filepath="$PROJECT_DIR$/jlib/jlib.iml" />
+    </modules>
+  </component>
+</project>
