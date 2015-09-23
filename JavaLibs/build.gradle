@@ -43,20 +43,37 @@ evaluationDependsOn('insurgent')
 evaluationDependsOn('oshelper')
 evaluationDependsOn('dbclient')
 evaluationDependsOn('iablib')
+evaluationDependsOn('applib')
+evaluationDependsOn('appcompatlib')
 
 project('insurgent') {
 	build.dependsOn(':jlib:artifactoryPublish')
+	artifactoryPublish.dependsOn('build')
 }
 
 project('oshelper') {
 	build.dependsOn(':insurgent:artifactoryPublish')
+	artifactoryPublish.dependsOn('build')
 }
 
 project('dbclient') {
 	build.dependsOn(':oshelper:artifactoryPublish')
+	artifactoryPublish.dependsOn('build')
 }
 
 project('iablib') {
 	build.dependsOn(':oshelper:artifactoryPublish')
+	artifactoryPublish.dependsOn('build')
 }
 
+project('appcompatlib') {
+	build.dependsOn(':dbclient:artifactoryPublish')
+	build.dependsOn(':iablib:artifactoryPublish')
+	artifactoryPublish.dependsOn('build')
+}
+
+project('applib') {
+	build.dependsOn(':dbclient:artifactoryPublish')
+	build.dependsOn(':iablib:artifactoryPublish')
+	artifactoryPublish.dependsOn('build')
+}
