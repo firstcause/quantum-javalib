@@ -49,7 +49,9 @@ public class MutinyElement
 
 	public MutinyElement getElement(String stTag,String stPathSpec)
 	{
-		if(stPathSpec.charAt(0) == '/')
+		MutinyElement element = null;
+
+		if(stPathSpec.startsWith("/") == true)
 		{
 			if(stPathSpec.equals("/"))
 				return rootElement();
@@ -68,13 +70,14 @@ public class MutinyElement
 
 				if(matcher.matches())
 				{
-					MutinyElement element = tagMap.get(matcher.group(1));
+					element = tagMap.get(matcher.group(1));
 
-					return element;
+					if(!matcher.group(2).isEmpty())
+						return element.getElement(stTag,matcher.group(2));
 				}
 			}
 		}
-		return null;
+		return element;
 	}
 
 	public String tag()
@@ -98,7 +101,7 @@ public class MutinyElement
 	protected void addAttribute(String stTag,String stValue)
 	{
 		if(mAttributeMap == null)
-			mAttributeMap = new TreeMap<>();
+			mAttributeMap = new TreeMap<String,String>();
 
 		mAttributeMap.put(stTag, stValue);
 	}
@@ -150,7 +153,7 @@ public class MutinyElement
 
 						if(tagMap == null)
 						{
-							tagMap = new TreeMap<>();
+							tagMap = new TreeMap<String,MutinyElement>();
 
 							mChildMap.put(element.tag(), tagMap);
 						}

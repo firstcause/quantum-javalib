@@ -1,5 +1,7 @@
 package com.denizensoft.mutinybench;
 
+import com.denizensoft.jlib.ParserException;
+import com.denizensoft.jlib.StringParser;
 import com.denizensoft.mutinyxml.MutinyElement;
 import com.denizensoft.mutinyxml.MutinyXml;
 
@@ -236,14 +238,29 @@ public class MutinyBench
 
 					Matcher matcher = pattern.matcher(stEntryPoint);
 
+					System.out.printf("Element name: %s\n",element.attribute("name"));
+
 					if(matcher.matches())
 					{
 						System.out.printf("Action: %s Parameter: %s\n",matcher.group(1),matcher.group(2));
+
+						switch(matcher.group(1))
+						{
+							case "showMenu" :
+							{
+								MutinyElement element1 = element.getElement("MenuDef", StringParser.parseStripQuotes(matcher.group(2)));
+							}
+							break;
+						}
+
 					}
 
-					System.out.printf("Element name: %s\n",element.attribute("name"));
 				}
 				catch(FileNotFoundException e)
+				{
+					e.printStackTrace();
+				}
+				catch(ParserException e)
 				{
 					e.printStackTrace();
 				}

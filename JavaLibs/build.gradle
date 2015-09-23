@@ -41,6 +41,8 @@ allprojects {
 
 evaluationDependsOn('insurgent')
 evaluationDependsOn('oshelper')
+evaluationDependsOn('dbclient')
+evaluationDependsOn('iablib')
 
 project('insurgent') {
 	build.dependsOn(':jlib:artifactoryPublish')
@@ -48,5 +50,13 @@ project('insurgent') {
 
 project('oshelper') {
 	build.dependsOn(':insurgent:artifactoryPublish')
+}
+
+project('dbclient') {
+	build.dependsOn(':oshelper:artifactoryPublish')
+}
+
+project('iablib') {
+	build.dependsOn(':oshelper:artifactoryPublish')
 }
 
