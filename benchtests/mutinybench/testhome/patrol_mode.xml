@@ -1,0 +1,219 @@
+<?xml version="1.0"?>
+
+<MutinyApp
+		name="mutiny_test"
+		action="mutinyAction('switch:/entry_point_switch');">
+
+	<TokenSwitchDef name='entry_point_switch' token="mutinyQuery('state_token:config_state');">
+
+		<TokenCaseDef token="factory_reset">
+
+			<ActionDef action="mutinyRequest('app_install');"/>
+
+			<ActionDef action="mutinyRequest('show_welcome_page');"/>
+
+			<ActionDef action="mutinyRequest('write_token:config_state:legal_acknowledgements');"/>
+
+			<ActionDef action="mutinyRequest('restart_activity');"/>
+
+		</TokenCaseDef>
+
+		<TokenCaseDef token="legal_acknowlegements">
+
+			<ActionDef action="mutinyRequest('show_legal_page');"/>
+
+			<ActionDef action="mutinyRequest('write_token:config_state:app_ready');"/>
+
+		</TokenCaseDef>
+
+		<TokenCaseDef token="app_ready">
+
+			<ActionDef action="mutinySwitch('/user_login_switch');"/>
+
+		</TokenCaseDef>
+
+	</TokenSwitchDef>
+
+	<TokenSwitchDef name='user_login_switch' token="mutinyQuery('login_state');">
+
+		<TokenCaseDef token="not_found">
+
+			<ActionDef action="mutinyRequest('do_user_login');"/>
+
+		</TokenCaseDef>
+
+		<TokenCaseDef token="user_ready">
+
+			<ActionDef action="mutinyAction('switch/user_config_switch');"/>
+
+		</TokenCaseDef>
+
+	</TokenSwitchDef>
+
+	<TokenSwitchDef name='user_config_switch' token="mutinyQuery('user_config')">
+
+		<TokenCaseDef token="not_found">
+
+			<ActionDef action="mutinyRequest('do_user_config');"/>
+
+		</TokenCaseDef>
+
+		<TokenCaseDef token="user_config_ready">
+
+			<ActionDef action="mutinyAction('show_menu:/user_ready_main'"/>
+
+		</TokenCaseDef>
+
+	</TokenSwitchDef>
+
+	<MenuDef name="user_ready_main">
+
+		<MenuItem onclick="mutinyAction('show_menu_on_stack:/training/main_menu');">
+			trainer_mode_menu_prompt
+		</MenuItem>
+
+		<MenuItem onclick="mutinyAction('show_menu_on_stack:/patrol/main_menu');">
+			patrol_mode_main_prompt
+		</MenuItem>
+
+	</MenuDef>
+
+	<FolderDef name="patrol">
+
+		<ScriptDef name="create_new_deployment">
+			<![CDATA[
+                mutinyRequest('create_new_deployment');
+                mutinyRequest('clear_backstack');
+                mutinyAction('edit_deployment:');
+            ]]>
+		</ScriptDef>
+
+		<MenuDef name="main_menu">
+
+			<MenuItem onclick="mutinyAction('show_menu_on_stack:deployment/new/main')">
+				create_new_deployment_main_prompt
+			</MenuItem>
+
+			<MenuItem onclick="mutinyAction('show_menu_on_stack:deployment/edit/main');"
+					  enablecondition="mutinyTestFound('current_deployments');">
+				edit_deployment_main_prompt
+			</MenuItem>
+
+		</MenuDef>
+
+		<FolderDef name="deployment">
+
+			<FolderDef name="new">
+
+				<MenuDef name="main">
+
+					<MenuItem onclick="mutinyAction('show_menu_on_stack:admin/main')">
+						administrative_deploy_prompt
+					</MenuItem>
+
+					<MenuItem onclick="mutinyAction('show_menu_on_stack:assist/main')">
+						assist_deploy_prompt
+					</MenuItem>
+
+					<MenuItem onclick="mutinyAction('show_menu_on_stack:patrol/main')">
+						patrol_deploy_prompt
+					</MenuItem>
+
+					<MenuItem onclick="mutinyAction('show_menu_on_stack:public_service/main')">
+						public_service_deploy_prompt
+					</MenuItem>
+
+					<MenuItem onclick="mutinyAction('show_menu_on_stack:pursuit/main')">
+						pursuit_deploy_prompt
+					</MenuItem>
+
+					<MenuItem onclick="mutinyAction('show_menu_on_stack:search/main')">
+						search_deploy_prompt
+					</MenuItem>
+
+					<MenuItem onclick="mutinyAction('show_menu_on_stack:track/main')">
+						track_deploy_prompt
+					</MenuItem>
+
+				</MenuDef>
+
+				<FolderDef name="admin">
+
+					<MenuDef name="main">
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:office')">
+							admin_office_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:paperwork')">
+							admin_paperwork_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:legal')">
+							admin_legal_prompt
+						</MenuItem>
+
+					</MenuDef>
+
+				</FolderDef>
+
+				<FolderDef name="assist">
+
+					<MenuDef name="main">
+
+						<MenuItem onclick="mutinyAction('create_new_deployment:civil_unrest');">
+							assist_civil_unrest_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:crowd_control');">
+							assist_crowd_control_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:interdiction');">
+							assist_interdiction_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:prisoner_transport');">
+							assist_prisoner_transport_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:search_rescue');">
+							assist_search_rescue_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:security_check')">
+							assist_security_check_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:security_escort')">
+							assist_security_escort_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:swat')">
+							assist_swat_prompt
+						</MenuItem>
+
+						<MenuItem onclick="mutinyRequest('create_new_deployment:warrant_service')">
+							assist_warrant_service_prompt
+						</MenuItem>
+
+
+					</MenuDef>
+
+				</FolderDef>
+
+			</FolderDef>
+
+		</FolderDef>
+
+	</FolderDef>
+
+
+	<FolderDef name="training">
+
+		<MenuDef name="main_menu">
+		</MenuDef>
+
+	</FolderDef>
+
+</MutinyApp>
