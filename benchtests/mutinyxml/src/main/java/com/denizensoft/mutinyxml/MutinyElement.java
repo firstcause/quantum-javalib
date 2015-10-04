@@ -118,6 +118,20 @@ public class MutinyElement
 		}
 	}
 
+	protected String parseAttributeValue(XmlPullParser parser,String stName)
+	{
+		int n = parser.getAttributeCount();
+
+		for(int i = 0; i < n; ++i)
+		{
+			String s1 = parser.getAttributeName(i), s2 = parser.getAttributeValue(i); //, s3 = parser.getAttributePrefix(i);
+
+			if(s1.equals(stName))
+				return s2;
+		}
+		return null;
+	}
+
 	public MutinyElement(MutinyElement parentElement, XmlPullParser parser)
 	{
 		mParent = parentElement;
@@ -131,6 +145,9 @@ public class MutinyElement
 
 			mTag = parser.getName();
 
+			if(mTag.equals("LinkSpec") && mParent == null)
+				throw new RuntimeException("Mutiny: Bad start, cannot begin with a LinkSpec!!");
+
 			logInfo(String.format(Locale.getDefault(), "Start: <%s>", mTag), parser.getDepth());
 
 			parseAttributes(parser);
@@ -141,10 +158,27 @@ public class MutinyElement
 				{
 					case XmlPullParser.START_TAG:
 					{
-						MutinyElement element = new MutinyElement(this,parser);
+						MutinyElement element = null;
 
-						if(element.attribute("name") == null)
-							element.addAttribute("name", String.format("_no_name_%04X", nUnNamedSequence++));
+						if(parser.getName().equals("LinkSpec"))
+						{
+							String stFileSpec = parseAttributeValue(parser,"filespec");
+
+							if(stFileSpec == null)
+								throw new RuntimeException("Mutiny: LinkSpec source file not specified!");
+
+							logInfo(String.format("Mutiny: Loading linked file: %s",stFileSpec),parser.getDepth());
+
+							element = MutinyXml.parseFile(stFileSpec);
+							element.mParent = this;
+						}
+						else
+						{
+							element = new MutinyElement(this, parser);
+
+							if(element.attribute("name") == null)
+								element.addAttribute("name", String.format("_no_name_%04X", nUnNamedSequence++));
+						}
 
 						if(mChildMap == null)
 							mChildMap = new TreeMap<String,TreeMap<String, MutinyElement>>();

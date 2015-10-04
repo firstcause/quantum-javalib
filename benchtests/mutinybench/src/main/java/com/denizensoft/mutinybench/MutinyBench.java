@@ -4,7 +4,6 @@ import com.denizensoft.jlib.ParserException;
 import com.denizensoft.jlib.StringParser;
 import com.denizensoft.mutinyxml.MutinyElement;
 import com.denizensoft.mutinyxml.MutinyXml;
-
 import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -12,7 +11,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
-import org.xmlpull.mxp1.MXParser;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -21,7 +19,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -204,35 +201,13 @@ public class MutinyBench
 			}
 			break;
 
-			case "pull":
-			{
-				try
-				{
-					MXParser mxp = new MXParser();
-
-					mxp.setInput(new FileReader(args[1]));
-
-					parseWithPULL(mxp,0);
-				}
-				catch(XmlPullParserException e)
-				{
-
-					e.printStackTrace();
-				}
-				catch(FileNotFoundException e)
-				{
-					e.printStackTrace();
-				}
-			}
-			break;
-
 			case "mutiny" :
 			{
 				try
 				{
 					MutinyElement element = MutinyXml.parseFile(args[1]);
 
-					String stEntryPoint = element.attribute("entrypoint");
+					String stEntryPoint = element.attribute("action");
 
 					Pattern pattern = Pattern.compile("([a-zA-Z0-9]+)\\((.*)\\);");
 
@@ -252,9 +227,7 @@ public class MutinyBench
 							}
 							break;
 						}
-
 					}
-
 				}
 				catch(FileNotFoundException e)
 				{
@@ -265,6 +238,7 @@ public class MutinyBench
 					e.printStackTrace();
 				}
 			}
+			break;
 		}
 	}
 }

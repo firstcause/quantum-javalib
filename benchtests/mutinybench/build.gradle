@@ -4,18 +4,21 @@ apply plugin: 'com.jfrog.artifactory'
 group 'com.denizensoft.mutinybench'
 version '1.0.0'
 
-// sourceCompatibility = 1.5
+sourceCompatibility = 1.7
 
 dependencies {
-    testCompile(group: 'junit', name: 'junit', version: '4.11')
+	testCompile(group: 'junit', name: 'junit', version: '4.11')
 
-    compile(group: 'org.apache.commons', name: 'commons-lang3', version: '3.4')
+	compile(group: 'org.apache.commons', name: 'commons-lang3', version: '3.4')
 
-    compile(group: 'xmlpull', name: 'xmlpull', version: '1.1.3.4d_b4_min')
+	// This one works fine, but its a MINIMAL implementation
+	// compile(group: 'xmlpull', name: 'xmlpull', version: '1.1.3.4d_b4_min')
+	//
+	compile(group: 'xmlpull', name: 'xmlpull', version: '1.1.3.4a')
 
-    compile(group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0')
+	compile(group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0')
 
-    // compile(group: 'org.apache.servicemix.bundles', name: 'org.apache.servicemix.bundles.xmlpull', version: '1.1.3.4a_1')
+	// compile(group: 'org.apache.servicemix.bundles', name: 'org.apache.servicemix.bundles.xmlpull', version: '1.1.3.4a_1')
 
 	// compile(group: 'net.sourceforge.jadex', name: 'jadex-android-xmlpull', version: '2.3')
 
@@ -23,27 +26,27 @@ dependencies {
 }
 
 artifactory {
-    contextUrl = "${artifactory_contextUrl}"
+	contextUrl = "${artifactory_contextUrl}"
 
-    resolve {
-        repository {
-            repoKey = 'jcenter'
-            maven = true
-        }
+	resolve {
+		repository {
+			repoKey = 'jcenter'
+			maven = true
+		}
 
-        repository {
-            repoKey = 'libs-release'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
-            maven = true
-        }
+		repository {
+			repoKey = 'libs-release'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+			maven = true
+		}
 
-        repository {
-            repoKey = 'libs-release-local'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
-            maven = true
-        }
+		repository {
+			repoKey = 'libs-release-local'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+			maven = true
+		}
 
-    }
+	}
 }

@@ -1,8 +1,8 @@
 package com.denizensoft.mutinyxml;
 
-import org.xmlpull.mxp1.MXParser;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -16,12 +16,14 @@ public class MutinyXml
 {
 	public static MutinyElement parseReader(Reader reader)
 	{
-		MutinyElement element = null;
+		XmlPullParser parser = null;
 
-		MXParser parser = new MXParser();
+		MutinyElement element = null;
 
 		try
 		{
+			parser = XmlPullParserFactory.newInstance().newPullParser();
+
 			parser.setInput(reader);
 
 			if(parser.getEventType() != XmlPullParser.START_DOCUMENT)
