@@ -4,6 +4,8 @@
 		name="mutiny_test"
 		action="mutinyAction('switch:/entry_point_switch');">
 
+	Here is the text
+
 	<LinkSpec filespec="patrol_mode.xml" />
 	<!-- <LinkSpec filespec="train_mode.xml" /> -->
 

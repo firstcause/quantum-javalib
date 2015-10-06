@@ -2,6 +2,7 @@ package com.denizensoft.mutinybench;
 
 import com.denizensoft.jlib.ParserException;
 import com.denizensoft.jlib.StringParser;
+import com.denizensoft.mutinyxml.MutinyDocument;
 import com.denizensoft.mutinyxml.MutinyElement;
 import com.denizensoft.mutinyxml.MutinyXml;
 import org.apache.commons.lang3.StringUtils;
@@ -205,15 +206,17 @@ public class MutinyBench
 			{
 				try
 				{
-					MutinyElement element = MutinyXml.parseFile(args[1]);
+					MutinyXml mutinyLoader = new MutinyXml();
 
-					String stEntryPoint = element.attribute("action");
+					MutinyDocument mutinyDocument = mutinyLoader.loadDocument(args[1]);
+
+					String stEntryPoint = mutinyDocument.attribute("action");
 
 					Pattern pattern = Pattern.compile("([a-zA-Z0-9]+)\\((.*)\\);");
 
 					Matcher matcher = pattern.matcher(stEntryPoint);
 
-					System.out.printf("Element name: %s\n",element.attribute("name"));
+					System.out.printf("Element name: %s\n",mutinyDocument.attribute("name"));
 
 					if(matcher.matches())
 					{
@@ -223,15 +226,11 @@ public class MutinyBench
 						{
 							case "showMenu" :
 							{
-								MutinyElement element1 = element.getElement("MenuDef", StringParser.parseStripQuotes(matcher.group(2)));
+								MutinyElement element1 = mutinyDocument.getElement("MenuDef", StringParser.parseStripQuotes(matcher.group(2)));
 							}
 							break;
 						}
 					}
-				}
-				catch(FileNotFoundException e)
-				{
-					e.printStackTrace();
 				}
 				catch(ParserException e)
 				{
