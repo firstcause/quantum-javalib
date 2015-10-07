@@ -210,23 +210,43 @@ public class MutinyBench
 
 					MutinyDocument mutinyDocument = mutinyLoader.loadDocument(args[1]);
 
-					String stEntryPoint = mutinyDocument.attribute("action");
+					String stEntryPoint = mutinyDocument.attribute("/main:action");
 
-					Pattern pattern = Pattern.compile("([a-zA-Z0-9]+)\\((.*)\\);");
+					Pattern pattern = Pattern.compile("([\\w\\d]+)\\((.*)\\);");
 
-					Matcher matcher = pattern.matcher(stEntryPoint);
+					Matcher m1 = pattern.matcher(stEntryPoint);
 
-					System.out.printf("Element name: %s\n",mutinyDocument.attribute("name"));
-
-					if(matcher.matches())
+					if(m1.matches())
 					{
-						System.out.printf("Action: %s Parameter: %s\n",matcher.group(1),matcher.group(2));
+						System.out.printf("Action: %s Parameter: %s\n", m1.group(1), m1.group(2));
 
-						switch(matcher.group(1))
+						if(m1.group(1).equals("mutiny"))
 						{
-							case "showMenu" :
+							Matcher m2 = Pattern.compile("(\\w+)\\:(.*)").matcher(m1.group(2));
+
+							switch(m2.group(1))
 							{
-								MutinyElement element1 = mutinyDocument.getElement("MenuDef", StringParser.parseStripQuotes(matcher.group(2)));
+								case "switch" :
+								{
+									MutinyElement e3 = mutinyDocument.getElement("mutiny_test").getElement(m2.group(2));
+								}
+								break;
+							}
+
+						}
+
+						switch(m1.group(1))
+						{
+							case "switch" :
+							{
+								MutinyElement e1 = mutinyDocument.getElement(StringParser.parseStripQuotes(m1.group(2)));
+
+								if(!e1.tag().equals("MenuDef"))
+									throw new RuntimeException(String.format("Mutiny: state error, incorrect element type: %s", e1.tag()),null);
+
+								// Execute the menu...
+								//
+
 							}
 							break;
 						}

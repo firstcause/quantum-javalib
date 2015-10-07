@@ -3,6 +3,7 @@ package com.denizensoft.mutinyxml;
 import org.apache.commons.lang3.StringUtils;
 import org.xmlpull.v1.XmlPullParser;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Logger;
@@ -22,9 +23,14 @@ public class MutinyElement
 
 	protected TreeMap<String, String> mAttributeMap = null;
 
-	protected TreeMap<String,TreeMap<String,MutinyElement>> mTagMap = null;
+	protected TreeMap<String,MutinyElement> mElementMap = null;
+
+	protected TreeMap<String,ArrayList<MutinyElement>> mTagMap = null;
 
 	protected Logger LOGGER = Logger.getLogger(MutinyElement.class.getName());
+
+	protected Pattern attributePathPattern = Pattern.compile("^([^:]+)\\:(\\w+)$"
+	);
 
 	protected void addAttribute(String stTag,String stValue)
 	{
@@ -36,27 +42,35 @@ public class MutinyElement
 
 	protected void addElement(MutinyElement element)
 	{
-		if(mTagMap == null)
-			mTagMap = new TreeMap<String,TreeMap<String, MutinyElement>>();
-
-		TreeMap<String, MutinyElement> elementMap = mTagMap.get(element.tag());
-
-		if(elementMap == null)
-		{
-			elementMap = new TreeMap<String,MutinyElement>();
-
-			mTagMap.put(element.tag(), elementMap);
-		}
-
 		String stName = element.attribute("name");
 
 		if(stName == null)
 		{
-			stName = String.format("__noname_%04X", nNonameSequence);
+			stName = String.format("__noname_%04X", nNonameSequence++);
 			element.addAttribute("name", stName);
 		}
 
-		elementMap.put(stName, element);
+		if(mTagMap == null)
+			mTagMap = new TreeMap<String,ArrayList<MutinyElement>>();
+
+		ArrayList<MutinyElement> tagArray = mTagMap.get(element.tag());
+
+		if(tagArray == null)
+		{
+			tagArray = new ArrayList<MutinyElement>();
+
+			mTagMap.put(element.tag(), tagArray);
+		}
+
+		if(mElementMap == null)
+			mElementMap = new TreeMap<>();
+
+		if(mElementMap.containsKey(stName))
+			throw new RuntimeException(String.format("Mutiny: element name collision at: %s/%s",elementPath(),stName),null);
+
+		tagArray.add(element);
+
+		mElementMap.put(stName,element);
 	}
 
 	protected void logInfo(String stLogEntry, int nTabDepth)
@@ -76,11 +90,26 @@ public class MutinyElement
 		}
 	}
 
-	public String attribute(String stTag)
+	public String attribute(String stTagSpec)
 	{
-		if(mAttributeMap != null && mAttributeMap.containsKey(stTag))
-			return mAttributeMap.get(stTag);
+		Matcher matcher = attributePathPattern.matcher(stTagSpec);
 
+		if(matcher.matches())
+		{
+			String
+					stPathSpec = matcher.group(1),
+					stAttribute = matcher.group(2);
+
+			MutinyElement element = getElement(matcher.group(1));
+
+			if(element != null)
+				return element.attribute(matcher.group(2));
+		}
+		else
+		{
+			if(mAttributeMap != null && mAttributeMap.containsKey(stTagSpec))
+				return mAttributeMap.get(stTagSpec);
+		}
 		return null;
 	}
 
@@ -89,47 +118,57 @@ public class MutinyElement
 		return mAttributeMap;
 	}
 
-	public Map<String,MutinyElement> childrenByTag(String stTag)
+	public ArrayList<MutinyElement> childrenByTag(String stTag)
 	{
-		Map<String,MutinyElement> map = null;
+		ArrayList<MutinyElement> arrayList = null;
 
 		if(mTagMap != null)
-			map = mTagMap.get(stTag);
+			arrayList = mTagMap.get(stTag);
 
-		return map;
+		return arrayList;
 	}
-	
-	public MutinyElement getElement(String stTag,String stPathSpec)
-	{
-		MutinyElement element = null;
 
+	public String elementPath()
+	{
+		String stName = attribute("name");
+
+		MutinyElement parent = parent();
+
+		if(parent != null)
+			return String.format("%s/%s",parent.elementPath(),stName);
+
+		return stName;
+	}
+
+	public MutinyElement getElement(String stPathSpec)
+	{
 		if(stPathSpec.startsWith("/") == true)
 		{
 			if(stPathSpec.equals("/"))
 				return rootElement();
 
-			return rootElement().getElement(stTag,stPathSpec.substring(1));
+			return rootElement().getElement(stPathSpec.substring(1));
 		}
 		else
 		{
-			TreeMap<String,MutinyElement> elementMap = mTagMap.get(stTag);
+			Pattern pattern = Pattern.compile("([^/]+)/(.*)");
 
-			if(elementMap != null)
+			Matcher matcher = pattern.matcher(stPathSpec);
+
+			if(matcher.matches())
 			{
-				Pattern pattern = Pattern.compile("(\\w+)/?(.*)");
-
-				Matcher matcher = pattern.matcher(stPathSpec);
-
-				if(matcher.matches())
-				{
-					element = elementMap.get(matcher.group(1));
-
-					if(!matcher.group(2).isEmpty())
-						return element.getElement(stTag,matcher.group(2));
-				}
+				// Still dealing with a path here...
+				//
+				if(mElementMap.containsKey(matcher.group(1)))
+					return mElementMap.get(matcher.group(2)).getElement(matcher.group(2));
+			}
+			else
+			{
+				if(mElementMap.containsKey(stPathSpec))
+					return mElementMap.get(stPathSpec);
 			}
 		}
-		return element;
+		return null;
 	}
 
 	public MutinyElement parent()

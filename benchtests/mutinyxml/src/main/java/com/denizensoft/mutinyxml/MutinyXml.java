@@ -17,6 +17,11 @@ import java.util.logging.Logger;
  */
 public class MutinyXml
 {
+	public interface AppInterface
+	{
+		public String invokeRequest(String stRequest);
+	}
+
 	private class State
 	{
 		Stack<XmlPullParser> mParserStack = new Stack<>();
@@ -222,7 +227,7 @@ public class MutinyXml
 		}
 	}
 
-	public MutinyDocument loadDocument(String stFileSpec)
+	public MutinyDocument loadDocument(MutinyXml.AppInterface appInterface,String stFileSpec)
 	{
 		MutinyDocument mutinyDocument = null;
 
@@ -230,7 +235,7 @@ public class MutinyXml
 		{
 			// Lets start things off...
 			//
-			mutinyDocument = new MutinyDocument(stFileSpec);
+			mutinyDocument = new MutinyDocument(appInterface,stFileSpec);
 
 			mState.pushElement(mutinyDocument);
 

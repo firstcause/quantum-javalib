@@ -2,7 +2,7 @@
 
 <MutinyApp
 		name="mutiny_test"
-		action="mutinyAction('switch:/entry_point_switch');">
+		action="mutiny('switch:/entry_point_switch');">
 
 	<TokenSwitchDef name='entry_point_switch' token="mutinyQuery('state_token:config_state');">
 
@@ -44,7 +44,7 @@
 
 		<TokenCaseDef token="user_ready">
 
-			<ActionDef action="mutinyAction('switch/user_config_switch');"/>
+			<ActionDef action="mutiny('switch/user_config_switch');"/>
 
 		</TokenCaseDef>
 
@@ -60,7 +60,7 @@
 
 		<TokenCaseDef token="user_config_ready">
 
-			<ActionDef action="mutinyAction('show_menu:/user_ready_main'"/>
+			<ActionDef action="mutiny('show_menu:/user_ready_main'"/>
 
 		</TokenCaseDef>
 
@@ -68,11 +68,11 @@
 
 	<MenuDef name="user_ready_main">
 
-		<MenuItem onclick="mutinyAction('show_menu_on_stack:/training/main_menu');">
+		<MenuItem onclick="mutiny('show_menu_on_stack:/training/main_menu');">
 			trainer_mode_menu_prompt
 		</MenuItem>
 
-		<MenuItem onclick="mutinyAction('show_menu_on_stack:/patrol/main_menu');">
+		<MenuItem onclick="mutiny('show_menu_on_stack:/patrol/main_menu');">
 			patrol_mode_main_prompt
 		</MenuItem>
 
@@ -84,17 +84,17 @@
 			<![CDATA[
                 mutinyRequest('create_new_deployment');
                 mutinyRequest('clear_backstack');
-                mutinyAction('edit_deployment:');
+                mutiny('edit_deployment:');
             ]]>
 		</ScriptDef>
 
 		<MenuDef name="main_menu">
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:deployment/new/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:deployment/new/main')">
 				create_new_deployment_main_prompt
 			</MenuItem>
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:deployment/edit/main');"
+			<MenuItem onclick="mutiny('show_menu_on_stack:deployment/edit/main');"
 					  enablecondition="mutinyTestFound('current_deployments');">
 				edit_deployment_main_prompt
 			</MenuItem>
@@ -107,31 +107,31 @@
 
 				<MenuDef name="main">
 
-					<MenuItem onclick="mutinyAction('show_menu_on_stack:admin/main')">
+					<MenuItem onclick="mutiny('show_menu_on_stack:admin/main')">
 						administrative_deploy_prompt
 					</MenuItem>
 
-					<MenuItem onclick="mutinyAction('show_menu_on_stack:assist/main')">
+					<MenuItem onclick="mutiny('show_menu_on_stack:assist/main')">
 						assist_deploy_prompt
 					</MenuItem>
 
-					<MenuItem onclick="mutinyAction('show_menu_on_stack:patrol/main')">
+					<MenuItem onclick="mutiny('show_menu_on_stack:patrol/main')">
 						patrol_deploy_prompt
 					</MenuItem>
 
-					<MenuItem onclick="mutinyAction('show_menu_on_stack:public_service/main')">
+					<MenuItem onclick="mutiny('show_menu_on_stack:public_service/main')">
 						public_service_deploy_prompt
 					</MenuItem>
 
-					<MenuItem onclick="mutinyAction('show_menu_on_stack:pursuit/main')">
+					<MenuItem onclick="mutiny('show_menu_on_stack:pursuit/main')">
 						pursuit_deploy_prompt
 					</MenuItem>
 
-					<MenuItem onclick="mutinyAction('show_menu_on_stack:search/main')">
+					<MenuItem onclick="mutiny('show_menu_on_stack:search/main')">
 						search_deploy_prompt
 					</MenuItem>
 
-					<MenuItem onclick="mutinyAction('show_menu_on_stack:track/main')">
+					<MenuItem onclick="mutiny('show_menu_on_stack:track/main')">
 						track_deploy_prompt
 					</MenuItem>
 
@@ -161,7 +161,7 @@
 
 					<MenuDef name="main">
 
-						<MenuItem onclick="mutinyAction('create_new_deployment:civil_unrest');">
+						<MenuItem onclick="mutiny('create_new_deployment:civil_unrest');">
 							assist_civil_unrest_prompt
 						</MenuItem>
 

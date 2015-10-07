@@ -6,31 +6,31 @@
 
 		<MenuDef name="main" title="deploy_new_menu_title">
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:admin/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:admin/main')">
 				administrative_deploy_prompt
 			</MenuItem>
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:assist/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:assist/main')">
 				assist_deploy_prompt
 			</MenuItem>
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:patrol/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:patrol/main')">
 				patrol_deploy_prompt
 			</MenuItem>
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:public_service/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:public_service/main')">
 				public_service_deploy_prompt
 			</MenuItem>
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:pursuit/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:pursuit/main')">
 				pursuit_deploy_prompt
 			</MenuItem>
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:search/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:search/main')">
 				search_deploy_prompt
 			</MenuItem>
 
-			<MenuItem onclick="mutinyAction('show_menu_on_stack:track/main')">
+			<MenuItem onclick="mutiny('show_menu_on_stack:track/main')">
 				track_deploy_prompt
 			</MenuItem>
 
@@ -60,7 +60,7 @@
 
 			<MenuDef name="main" title="deploy_assist_menu_title">
 
-				<MenuItem onclick="mutinyAction('create_new_deployment:civil_unrest');">
+				<MenuItem onclick="mutiny('create_new_deployment:civil_unrest');">
 					assist_civil_unrest_prompt
 				</MenuItem>
 
@@ -104,7 +104,7 @@
 
 			<MenuDef name="main" title="deploy_patrol_menu_title">
 
-				<MenuItem onclick="mutinyAction('create_new_deployment:alarm');">
+				<MenuItem onclick="mutiny('create_new_deployment:alarm');">
 					patrol_alarm_prompt
 				</MenuItem>
 
@@ -136,7 +136,7 @@
 
 			<MenuDef name="main">
 
-				<MenuItem onclick="mutinyAction('create_new_deployment:school');">
+				<MenuItem onclick="mutiny('create_new_deployment:school');">
 					pubsrv_school_prompt
 				</MenuItem>
 
@@ -156,7 +156,7 @@
 
 			<MenuDef name="main" title="deploy_search_menu_title">
 
-				<MenuItem onclick="mutinyAction('create_new_deployment:school');">
+				<MenuItem onclick="mutiny('create_new_deployment:school');">
 					pubsrv_school_prompt
 				</MenuItem>
 

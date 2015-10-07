@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 
 <MutinyApp
-		name="mutiny_test"
-		action="mutinyAction('switch:/entry_point_switch');">
+		name="main"
+		action="mutiny('switch:/entry_point_switch');">
 
 	Here is the text
 
@@ -49,7 +49,7 @@
 
 		<TokenCaseDef token="user_ready">
 
-			<ActionDef action="mutinyAction('switch/user_config_switch');"/>
+			<ActionDef action="mutiny('switch/user_config_switch');"/>
 
 		</TokenCaseDef>
 
@@ -65,7 +65,7 @@
 
 		<TokenCaseDef token="user_config_ready">
 
-			<ActionDef action="mutinyAction('show_menu:/user_ready_main'"/>
+			<ActionDef action="mutiny('show_menu:/user_ready_main'"/>
 
 		</TokenCaseDef>
 
@@ -73,11 +73,11 @@
 
 	<MenuDef name="user_ready_main">
 
-		<MenuItem onclick="mutinyAction('show_menu_on_stack:/training/main_menu');">
+		<MenuItem onclick="mutiny('show_menu_on_stack:/training/main_menu');">
 			trainer_mode_menu_prompt
 		</MenuItem>
 
-		<MenuItem onclick="mutinyAction('show_menu_on_stack:/patrol/main_menu');">
+		<MenuItem onclick="mutiny('show_menu_on_stack:/patrol/main_menu');">
 			patrol_mode_main_prompt
 		</MenuItem>
 
