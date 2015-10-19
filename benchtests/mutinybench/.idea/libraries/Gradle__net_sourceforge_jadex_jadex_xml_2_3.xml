@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: net.sourceforge.jadex:jadex-xml:2.3">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.sourceforge.jadex/jadex-xml/2.3/1f6fc823e09cc08ab2e7219bee4de7cc431373f9/jadex-xml-2.3.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.sourceforge.jadex/jadex-xml/2.3/aa75cc61bb634d7fb328df20f9fce7f13b3a20bb/jadex-xml-2.3-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

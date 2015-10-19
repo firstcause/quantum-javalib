@@ -98,7 +98,7 @@ public class AppFragment extends Fragment implements
 	// MsgTarget.HookInterface overrides
 	//
 	@Override
-	public void commandHook(int nCommand)
+	public void commandHook(int nCommand,Bundle args)
 	{
 		// default, do nothing!
 	}
@@ -120,13 +120,13 @@ public class AppFragment extends Fragment implements
 	}
 
 	@Override
-	public void notificationHook(int nNotify)
+	public void notificationHook(int nNotify,Bundle args)
 	{
 		// default, do nothing!
 	}
 
 	@Override
-	public void tokenHook(String s, Message message)
+	public void tokenHook(String stToken,Bundle args)
 	{
 		// default, do nothing!
 	}

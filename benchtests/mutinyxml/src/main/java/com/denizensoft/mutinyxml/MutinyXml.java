@@ -5,10 +5,7 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
+import java.io.*;
 import java.util.Stack;
 import java.util.logging.Logger;
 
@@ -17,10 +14,7 @@ import java.util.logging.Logger;
  */
 public class MutinyXml
 {
-	public interface AppInterface
-	{
-		public String invokeRequest(String stRequest);
-	}
+	private final MutinyElement.Requester mRequester;
 
 	private class State
 	{
@@ -85,15 +79,13 @@ public class MutinyXml
 
 		public void pushParser(String stFileSpec) throws FileNotFoundException
 		{
-			Reader reader = new FileReader(stFileSpec);
-
 			XmlPullParser parser = null;
 
 			try
 			{
 				parser = XmlPullParserFactory.newInstance().newPullParser();
 
-				parser.setInput(reader);
+				parser.setInput(mRequester.openFileReader(stFileSpec));
 
 				if(parser.getEventType() != XmlPullParser.START_DOCUMENT)
 					throw new RuntimeException("Mutiny: Invalid document start? malformed file?", null);
@@ -140,10 +132,19 @@ public class MutinyXml
 		{
 			while(mState.parser() != null)
 			{
-				nEventType = mState.parser().next();
+				nEventType = mState.parser().nextToken();
 
 				switch(nEventType)
 				{
+					case XmlPullParser.CDSECT:
+					{
+						String s1 = mState.parser().getText().trim();
+
+						if(!s1.isEmpty())
+							mState.element().mCDATA=s1;
+					}
+					break;
+
 					case XmlPullParser.END_DOCUMENT :
 					{
 						XmlPullParser parser = mState.mParserStack.pop();
@@ -227,7 +228,7 @@ public class MutinyXml
 		}
 	}
 
-	public MutinyDocument loadDocument(MutinyXml.AppInterface appInterface,String stFileSpec)
+	public MutinyDocument loadDocument(String stFileSpec)
 	{
 		MutinyDocument mutinyDocument = null;
 
@@ -235,7 +236,7 @@ public class MutinyXml
 		{
 			// Lets start things off...
 			//
-			mutinyDocument = new MutinyDocument(appInterface,stFileSpec);
+			mutinyDocument = new MutinyDocument(mRequester,stFileSpec);
 
 			mState.pushElement(mutinyDocument);
 
@@ -250,7 +251,8 @@ public class MutinyXml
 		return mutinyDocument;
 	}
 
-	public MutinyXml()
+	public MutinyXml(MutinyElement.Requester requester)
 	{
+		mRequester = requester;
 	}
 }

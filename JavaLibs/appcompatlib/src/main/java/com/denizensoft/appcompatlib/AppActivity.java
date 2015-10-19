@@ -229,7 +229,7 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	// MsgTarget.HookInterface overrides
 	//
 	@Override
-	public void commandHook(int nCommand)
+	public void commandHook(int nCommand,Bundle args)
 	{
 	}
 
@@ -257,7 +257,12 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	}
 
 	@Override
-	public void notificationHook(int nNotify)
+	public void notificationHook(int nNotify,Bundle args)
+	{
+	}
+
+	@Override
+	public void tokenHook(String stToken,Bundle args)
 	{
 	}
 

@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: net.sourceforge.jadex:jadex-android-xmlpull:2.3">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.sourceforge.jadex/jadex-android-xmlpull/2.3/5f4d910c8002fa910f7115c851157763cdfc9009/jadex-android-xmlpull-2.3.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.sourceforge.jadex/jadex-android-xmlpull/2.3/7e56b3b8d840be55b186cbb2352a69787dd79865/jadex-android-xmlpull-2.3-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

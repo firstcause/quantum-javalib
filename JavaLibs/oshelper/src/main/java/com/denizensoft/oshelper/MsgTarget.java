@@ -54,9 +54,9 @@ public class MsgTarget extends Handler
 	{
 		public void cleanupRequestHook();
 
-		public void commandHook(int nCommand);
+		public void commandHook(int nCommand, Bundle args);
 
-		public void tokenHook(String stToken, Message msg);
+		public void tokenHook(String stToken, Bundle args);
 
 		public void fatalRequestErrorHook(String stFatalError);
 
@@ -64,7 +64,7 @@ public class MsgTarget extends Handler
 
 		MsgTarget messageTarget();
 
-		public void notificationHook(int nNotify);
+		public void notificationHook(int nNotify, Bundle args);
 
 		public boolean otherMessageHook(Message msg);
 
@@ -162,7 +162,7 @@ public class MsgTarget extends Handler
 			case N_MSG_COMMAND:
 			{
 				if(mHookInterface != null)
-					mHookInterface.commandHook(msg.arg1);
+					mHookInterface.commandHook(msg.arg1,msg.getData());
 			}
 			break;
 
@@ -210,7 +210,7 @@ public class MsgTarget extends Handler
 			case N_MSG_NOTIFY:
 			{
 				if(mHookInterface != null)
-					mHookInterface.notificationHook(msg.arg1);
+					mHookInterface.notificationHook(msg.arg1,msg.getData());
 			}
 			break;
 
@@ -221,7 +221,7 @@ public class MsgTarget extends Handler
 					String stToken = msg.getData().getString("_msg_token");
 
 					if(stToken != null)
-						mHookInterface.tokenHook(stToken,msg);
+						mHookInterface.tokenHook(stToken,msg.getData());
 				}
 			}
 			break;

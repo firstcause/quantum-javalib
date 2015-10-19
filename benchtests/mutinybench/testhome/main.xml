@@ -4,68 +4,75 @@
 		name="main"
 		action="mutiny('switch:/entry_point_switch');">
 
-	Here is the text
-
 	<LinkSpec filespec="patrol_mode.xml" />
 	<!-- <LinkSpec filespec="train_mode.xml" /> -->
 
-	<TokenSwitchDef name='entry_point_switch' token="mutinyState('query:state_token:config_state');">
+	<TokenSwitchDef name='entry_point_switch' token="request('query:state_token:config_state');">
 
-		<TokenCaseDef token="factory_reset">
+		<TokenCaseDef name="factory_reset">
 
-			<ActionDef action="mutinyRequest('app_install');"/>
-
-			<ActionDef action="mutinyRequest('show_welcome_page');"/>
-
-			<ActionDef action="mutinyState('persist:config_state:legal_acknowledgements');"/>
-
-			<ActionDef action="mutinyRequest('restart_activity');"/>
-
-		</TokenCaseDef>
-
-		<TokenCaseDef token="legal_acknowlegements">
-
-			<ActionDef action="mutinyRequest('show_legal_page');"/>
-
-			<ActionDef action="mutinyState('persist:config_state:app_ready');"/>
+			<![CDATA[
+				request('setup:setup_wait_page');
+				request('setup:app_install');
+				request('setup:show_welcome_page');
+				request('store:state_token:config_state:legal_acknowledgements');
+				request('restart_activity');
+			]]>
 
 		</TokenCaseDef>
 
-		<TokenCaseDef token="app_ready">
+		<TokenCaseDef name="legal_acknowlegements">
 
-			<ActionDef action="mutinySwitch('/user_login_switch');"/>
+			<![CDATA[
+				request('setup:show_legal_page');
+				request('store:state_token:config_state:app_ready');
+			]]>
+
+		</TokenCaseDef>
+
+		<TokenCaseDef name="app_ready">
+			<![CDATA[
+				mutiny('switch:/user_login_switch');
+			]]>
+		</TokenCaseDef>
+
+	</TokenSwitchDef>
+
+	<TokenSwitchDef name='user_login_switch' token="request('query:session:login_state');">
+
+		<TokenCaseDef name="not_found">
+
+			<![CDATA[
+				request('config:do_user_login');
+			]]>
+
+		</TokenCaseDef>
+
+		<TokenCaseDef name="user_ready">
+
+			<![CDATA[
+				mutiny('switch:/user_config_switch');
+			]]>
 
 		</TokenCaseDef>
 
 	</TokenSwitchDef>
 
-	<TokenSwitchDef name='user_login_switch' token="mutinyState('query:session:login_state');">
+	<TokenSwitchDef name='user_config_switch' token="request('query:state_token:user_config')">
 
-		<TokenCaseDef token="not_found">
+		<TokenCaseDef name="not_found">
 
-			<ActionDef action="mutinyRequest('do_user_login');"/>
-
-		</TokenCaseDef>
-
-		<TokenCaseDef token="user_ready">
-
-			<ActionDef action="mutiny('switch/user_config_switch');"/>
+			<![CDATA[
+				request('config:do_user_config');
+			]]>
 
 		</TokenCaseDef>
 
-	</TokenSwitchDef>
+		<TokenCaseDef name="user_config_ready">
 
-	<TokenSwitchDef name='user_config_switch' token="mutinyState('query:state_token:user_config')">
-
-		<TokenCaseDef token="not_found">
-
-			<ActionDef action="mutinyRequest('do_user_config');"/>
-
-		</TokenCaseDef>
-
-		<TokenCaseDef token="user_config_ready">
-
-			<ActionDef action="mutiny('show_menu:/user_ready_main'"/>
+			<![CDATA[
+				mutiny('show_menu:/user_ready_main');
+			]]>
 
 		</TokenCaseDef>
 

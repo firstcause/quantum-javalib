@@ -1,7 +1,5 @@
 package com.denizensoft.mutinybench;
 
-import com.denizensoft.jlib.ParserException;
-import com.denizensoft.jlib.StringParser;
 import com.denizensoft.mutinyxml.MutinyDocument;
 import com.denizensoft.mutinyxml.MutinyElement;
 import com.denizensoft.mutinyxml.MutinyXml;
@@ -12,23 +10,50 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Matcher;
+import java.io.*;
 import java.util.regex.Pattern;
 
 public class MutinyBench
 {
+	private static class AppRequester implements MutinyElement.Requester
+	{
+		@Override
+		public Reader openFileReader(String stFileSpec)
+		{
+			Reader reader = null;
+
+			String s1 = String.format("./%s",stFileSpec);
+
+			try
+			{
+				InputStream fis = new FileInputStream(s1);
+
+				reader = new BufferedReader(new InputStreamReader(fis));
+			}
+			catch(FileNotFoundException e)
+			{
+				throw new RuntimeException(String.format("Mutiny: couldn't open requested file: %s",stFileSpec));
+			}
+			return reader;
+		}
+
+		@Override
+		public String invokeRequest(MutinyElement element,String stRequest)
+		{
+			System.out.printf("Mutiny request received, context element: %s, request: %s\r\n",
+					element.elementPath(),stRequest);
+
+			return "OK";
+		}
+	}
+
 	static public Pattern pattern = Pattern.compile("\\#(\\w+)");
+
+	static AppRequester appRequester = new AppRequester();
 
 	public static void traverseNodeDOM(Node node, int nDepth)
 	{
@@ -102,96 +127,6 @@ public class MutinyBench
 		}
 	}
 
-	public static void traverseNodePULL(XmlPullParser parser, int nDepth)
-	{
-	}
-
-	public static Map<String,String> parseAttributeMapPull(XmlPullParser parser)
-	{
-		int n = parser.getAttributeCount();
-
-		if(n > 0)
-		{
-			HashMap<String,String> hashMap = new HashMap<String,String>();
-
-			for(int i=0; i<n; ++i)
-			{
-				String s1=parser.getAttributeName(i), s2 = parser.getAttributeValue(i), s3 = parser.getAttributePrefix(i);
-
-				hashMap.put(s1,s2);
-			}
-			return hashMap;
-		}
-
-		return null;
-	}
-
-	public static void parseWithPULL(XmlPullParser parser, int nDepth)
-	{
-		try
-		{
-			int nEventType = 0;
-
-			while(( nEventType = parser.getEventType()) != XmlPullParser.END_DOCUMENT)
-			{
-				System.out.printf("%s", StringUtils.repeat("\t", parser.getDepth()));
-
-				switch(nEventType)
-				{
-					case XmlPullParser.END_DOCUMENT :
-					{
-						System.out.printf("----> EOD <----\n");
-					}
-					break;
-
-					case XmlPullParser.START_DOCUMENT :
-					{
-						System.out.printf("----> SOD <----\n");
-					}
-					break;
-
-					case XmlPullParser.START_TAG:
-					{
-						System.out.printf("<%s>\n", parser.getName());
-
-						Map<String,String> map = parseAttributeMapPull(parser);
-
-						for(Map.Entry<String,String> entry: map.entrySet())
-						{
-							System.out.printf("%s%s - %s\n", StringUtils.repeat("\t", parser.getDepth()+1),
-									entry.getKey(),entry.getValue());
-						}
-					}
-					break;
-
-					case XmlPullParser.END_TAG:
-					{
-						System.out.printf("</%s>\n", parser.getName());
-					}
-					break;
-
-					case XmlPullParser.TEXT:
-					{
-						System.out.printf("\tTEXT: %s\n", parser.getText());
-					}
-					break;
-
-				}
-
-				parser.next();
-			}
-		}
-		catch(XmlPullParserException e)
-		{
-
-			e.printStackTrace();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-	}
-
 	public static void main(String[] args)
 	{
 		switch(args[0].toLowerCase())
@@ -204,58 +139,11 @@ public class MutinyBench
 
 			case "mutiny" :
 			{
-				try
-				{
-					MutinyXml mutinyLoader = new MutinyXml();
+				MutinyXml mutinyLoader = new MutinyXml(appRequester);
 
-					MutinyDocument mutinyDocument = mutinyLoader.loadDocument(args[1]);
+				MutinyDocument mutinyDocument = mutinyLoader.loadDocument(args[1]);
 
-					String stEntryPoint = mutinyDocument.attribute("/main:action");
-
-					Pattern pattern = Pattern.compile("([\\w\\d]+)\\((.*)\\);");
-
-					Matcher m1 = pattern.matcher(stEntryPoint);
-
-					if(m1.matches())
-					{
-						System.out.printf("Action: %s Parameter: %s\n", m1.group(1), m1.group(2));
-
-						if(m1.group(1).equals("mutiny"))
-						{
-							Matcher m2 = Pattern.compile("(\\w+)\\:(.*)").matcher(m1.group(2));
-
-							switch(m2.group(1))
-							{
-								case "switch" :
-								{
-									MutinyElement e3 = mutinyDocument.getElement("mutiny_test").getElement(m2.group(2));
-								}
-								break;
-							}
-
-						}
-
-						switch(m1.group(1))
-						{
-							case "switch" :
-							{
-								MutinyElement e1 = mutinyDocument.getElement(StringParser.parseStripQuotes(m1.group(2)));
-
-								if(!e1.tag().equals("MenuDef"))
-									throw new RuntimeException(String.format("Mutiny: state error, incorrect element type: %s", e1.tag()),null);
-
-								// Execute the menu...
-								//
-
-							}
-							break;
-						}
-					}
-				}
-				catch(ParserException e)
-				{
-					e.printStackTrace();
-				}
+				mutinyDocument.exec(args);
 			}
 			break;
 		}
