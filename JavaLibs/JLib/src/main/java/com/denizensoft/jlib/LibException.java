@@ -3,7 +3,7 @@ package com.denizensoft.jlib;
 /**
  * Created by sjm on 12/20/2014.
  */
-public class LibException extends Exception
+public class LibException extends RuntimeException
 {
 	public LibException()
 	{

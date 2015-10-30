@@ -146,7 +146,7 @@ public class MsgTarget extends Handler
 				mPendingReply.notifyAll();
 				mPendingReply = null;
 				mHookInterface.cleanupRequestHook();
-			}
+			};
 		}
 		catch(JSONException e)
 		{
