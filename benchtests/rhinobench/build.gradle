@@ -1,0 +1,41 @@
+apply plugin: 'java'
+apply plugin: 'com.jfrog.artifactory'
+
+group 'com.denizensoft.rhinobench'
+version '1.0.0'
+
+sourceCompatibility = 1.7
+
+dependencies {
+    testCompile(group: 'junit', name: 'junit', version: '4.11')
+
+    compile(group: 'org.apache.commons', name: 'commons-lang3', version: '3.4')
+
+    compile(group: 'org.mozilla', name: 'rhino', version: '1.7R5')
+}
+
+artifactory {
+    contextUrl = "${artifactory_contextUrl}"
+
+    resolve {
+        repository {
+            repoKey = 'jcenter'
+            maven = true
+        }
+
+        repository {
+            repoKey = 'libs-release'
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+            maven = true
+        }
+
+        repository {
+            repoKey = 'libs-release-local'
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+            maven = true
+        }
+
+    }
+}

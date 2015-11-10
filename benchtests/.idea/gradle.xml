@@ -12,6 +12,7 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/mutinybench" />
             <option value="$PROJECT_DIR$/mutinyxml" />
+            <option value="$PROJECT_DIR$/rhinobench" />
           </set>
         </option>
         <option name="useAutoImport" value="true" />

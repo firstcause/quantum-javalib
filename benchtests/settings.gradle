@@ -1,3 +1,4 @@
 rootProject.name = 'benchtests'
 include ':mutinybench',':mutinyxml'
+include 'rhinobench'
 
