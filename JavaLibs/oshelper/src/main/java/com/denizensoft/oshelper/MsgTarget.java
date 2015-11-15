@@ -309,6 +309,27 @@ public class MsgTarget extends Handler
 		return jsReply;
 	}
 
+	public String jsJsonRequest(String stJSON)
+	{
+		String stReply = null;
+
+		Log.d("MsgTarget", "jsJsonRequest: Sending: " + stJSON);
+
+		JSONObject jsReply = sendRequest(stJSON);
+
+		if(jsReply != null)
+		{
+			stReply = jsReply.toString();
+
+			Log.d("MsgTarget", "jsJsonRequest: Request complete, reply: "+stReply);
+		}
+		else
+		{
+			Log.d("MsgTarget", "jsJsonRequest: Request cancelled!");
+		}
+		return stReply;
+	}
+
 	public void sendToken(String stToken,Bundle args)
 	{
 		Message msg = obtainMessage();
