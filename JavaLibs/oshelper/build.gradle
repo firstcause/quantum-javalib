@@ -3,7 +3,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
 group = 'com.denizensoft.oshelper'
-version = '1.0.0'
+version = '1.0.1'
 
 android {
 	compileSdkVersion 23

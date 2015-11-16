@@ -3,7 +3,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
 group = 'com.denizensoft.appcompatlib'
-version = '1.0.0'
+version = '1.0.1'
 
 android {
 	compileSdkVersion 23
@@ -38,11 +38,11 @@ dependencies {
 
 	compile(group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0', transitive: true, changing: true )
 
-	compile(group: 'com.denizensoft.oshelper', name: 'oshelper-v17', version: '1.0.0', transitive: true, changing: true )
+	compile(group: 'com.denizensoft.oshelper', name: 'oshelper-v17', version: '1.0.1', transitive: true, changing: true )
 
 	compile(group: 'com.denizensoft.dbclient', name: 'dbclient-v17', version: '1.0.0', transitive: true, changing: true )
 
-	compile(group: 'com.denizensoft.iablib', name: 'iablib-v17', version: '1.0.0', transitive: true, changing: true )
+	compile(group: 'com.denizensoft.iablib', name: 'iablib-v17', version: '1.0.1', transitive: true, changing: true )
 
 }
 

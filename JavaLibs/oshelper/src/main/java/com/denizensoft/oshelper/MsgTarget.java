@@ -6,6 +6,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.denizensoft.jlib.*;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -50,6 +52,28 @@ public class MsgTarget extends Handler
 		USER_CANCELLED
 	}
 
+	public class HandlerException extends LibException
+	{
+		public HandlerException()
+		{
+		}
+
+		public HandlerException(String message)
+		{
+			super(message);
+		}
+
+		public HandlerException(Throwable cause)
+		{
+			super(cause);
+		}
+
+		public HandlerException(String message, Throwable cause)
+		{
+			super(message, cause);
+		}
+	}
+
 	public interface HookInterface
 	{
 		public void cleanupRequestHook();
@@ -58,9 +82,7 @@ public class MsgTarget extends Handler
 
 		public void tokenHook(String stToken, Bundle args);
 
-		public void fatalRequestErrorHook(String stFatalError);
-
-		public void invokeRequestHook(JSONObject jsonRequest, final JSONObject jsonReply);
+		public void invokeRequestHook(JSONObject jsRequest, final JSONObject jsReply);
 
 		MsgTarget messageTarget();
 
@@ -150,7 +172,7 @@ public class MsgTarget extends Handler
 		}
 		catch(JSONException e)
 		{
-			mHookInterface.fatalRequestErrorHook(String.format("JSON exception: %s",e.getMessage()));
+			throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
 		}
 	}
 
@@ -179,57 +201,39 @@ public class MsgTarget extends Handler
 						// Don't monkey with this! As the request wait state can be set elsewhere!
 						// while the handler is in progress!
 						//
-						if(mHookInterface == null)
-						{
-							mPendingReply.put("$rc",N_RC_ERROR);
-							mPendingReply.put("$error","No handler was found for the operation!");
+						JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
 
-							RequestState = StateCode.REPLY_READY;
-							mPendingReply.notifyAll();
-							mPendingReply = null;
-						}
-						else
-						{
-							JSONObject jsonRequest = new JSONObject(msg.getData().getString("$request"));
+						mHookInterface.invokeRequestHook(jsRequest, mPendingReply);
 
-							mHookInterface.invokeRequestHook(jsonRequest, mPendingReply);
-
-							if(RequestState == StateCode.REPLY_PENDING)
-								Log.d("MsgTarget", "Reply is still pending after start hook...");
-						}
+						if(RequestState == StateCode.REPLY_PENDING)
+							Log.d("MsgTarget", "Reply is still pending after start hook...");
 					}
 				}
 				catch(JSONException e)
 				{
-					mHookInterface.fatalRequestErrorHook(String.format("JSON Exception: %s",e.getMessage()));
-					return;
+					throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
 				}
 			}
 			break;
 
 			case N_MSG_NOTIFY:
 			{
-				if(mHookInterface != null)
-					mHookInterface.notificationHook(msg.arg1,msg.getData());
+				mHookInterface.notificationHook(msg.arg1,msg.getData());
 			}
 			break;
 
 			case N_MSG_TOKEN:
 			{
-				if(mHookInterface != null)
-				{
-					String stToken = msg.getData().getString("_msg_token");
+				String stToken = msg.getData().getString("_msg_token");
 
-					if(stToken != null)
-						mHookInterface.tokenHook(stToken,msg.getData());
-				}
+				if(stToken != null)
+					mHookInterface.tokenHook(stToken,msg.getData());
 			}
 			break;
 
 			default:
 			{
-				if(!mHookInterface.otherMessageHook(msg))
-					super.handleMessage(msg);
+				super.handleMessage(msg);
 			}
 			break;
 
@@ -238,6 +242,9 @@ public class MsgTarget extends Handler
 
 	public void sendCommand(int nCommand,Bundle args)
 	{
+		if(mHookInterface == null)
+			throw new HandlerException("Fatal: There is no hook interface!");
+
 		Message msg = obtainMessage();
 
 		msg.what = N_MSG_COMMAND;
@@ -250,6 +257,9 @@ public class MsgTarget extends Handler
 
 	public void sendNotify(int nNotify,Bundle args)
 	{
+		if(mHookInterface == null)
+			throw new HandlerException("Fatal: There is no hook interface!");
+
 		Message msg = obtainMessage();
 
 		msg.what = N_MSG_NOTIFY;
@@ -260,16 +270,34 @@ public class MsgTarget extends Handler
 		sendMessage(msg);
 	}
 
-	public JSONObject sendRequest(JSONObject jsonRequest)
+	public JSONObject sendRequest(JSONObject jsRequest)
 	{
-		return sendRequest(jsonRequest.toString());
+		return sendRequest(jsRequest.toString());
 	}
 
 	public JSONObject sendRequest(String stJSON)
 	{
-		Message msg = obtainMessage();
+		if(mHookInterface == null)
+			throw new HandlerException("Fatal: There is no hook interface!");
 
 		JSONObject jsReply = new JSONObject();
+
+		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
+		{
+			try
+			{
+				JSONObject jsRequest = new JSONObject(stJSON);
+
+				mHookInterface.invokeRequestHook(jsRequest, jsReply);
+			}
+			catch(JSONException e)
+			{
+				throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+			}
+			return jsReply;
+		}
+
+		Message msg = obtainMessage();
 
 		msg.what = N_MSG_REQUEST;
 		msg.setData(new Bundle());
@@ -277,7 +305,7 @@ public class MsgTarget extends Handler
 		msg.obj = jsReply;
 
 		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
-			mHookInterface.fatalRequestErrorHook("MsgTarget: Requesting thread id matches the handler looper id!");
+			throw new RuntimeException("MsgTarget: Requesting thread id matches the handler looper id!");
 
 		synchronized(mRequestMutex)
 		{
@@ -332,6 +360,9 @@ public class MsgTarget extends Handler
 
 	public void sendToken(String stToken,Bundle args)
 	{
+		if(mHookInterface == null)
+			throw new HandlerException("Fatal: There is no hook interface!");
+
 		Message msg = obtainMessage();
 
 		msg.what = N_MSG_TOKEN;

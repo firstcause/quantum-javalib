@@ -569,7 +569,7 @@ public class IABFragment extends WebAppFragment implements
 			}
 			catch(JSONException e)
 			{
-				fatalRequestErrorHook(String.format(Locale.US,"JSON Request: exception during reply: %s",e.getMessage()));
+				throw new RuntimeException(String.format(Locale.US,"JSON Request: exception during reply: %s",e.getMessage()));
 			}
 		}
 	}

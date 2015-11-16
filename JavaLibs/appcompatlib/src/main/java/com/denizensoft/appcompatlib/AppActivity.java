@@ -234,12 +234,6 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	}
 
 	@Override
-	public void fatalRequestErrorHook(String stFatalError)
-	{
-		appFatalErrorHook("Fatal request error", stFatalError);
-	}
-
-	@Override
 	public void invokeRequestHook(JSONObject jsonRequest, final JSONObject jsonReply)
 	{
 		messageTarget().sendReply(MsgTarget.ReplyCode.CRITICAL_ERROR, "No handler!");

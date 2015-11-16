@@ -103,11 +103,6 @@ public class AppFragment extends Fragment implements
 		// default, do nothing!
 	}
 
-	public void fatalRequestErrorHook(String stFatalError)
-	{
-		mAppInterface.appFatalErrorHook("Request Error",stFatalError);
-	}
-
 	@Override
 	public void cleanupRequestHook()
 	{
