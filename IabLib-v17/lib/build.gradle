@@ -2,7 +2,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
-group = 'com.denizensoft.droidlib'
+group = 'com.denizensoft.iablib'
 version = '1.0.4'
 
 android {
@@ -37,6 +37,7 @@ dependencies {
 	compile fileTree(dir: 'libs', include: ['*.jar'])
 	compile(group: 'com.android.support', name: 'appcompat-v7', version: '23.1.1')
 	compile(group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.droidlib', name: 'droidlib-v17', version: '1.0.4', transitive: true, changing: true)
 }
 
 task sourcesJar(type: Jar) {
@@ -60,7 +61,7 @@ task javadocJar(type: Jar, dependsOn: libJavaDoc) {
 publishing {
 	publications {
 		mavenJava(MavenPublication) {
-			artifactId 'droidlib-v17'
+			artifactId 'iablib-v17'
 			artifacts = [bundleRelease, sourcesJar]
 		}
 	}
@@ -132,6 +133,6 @@ artifactory {
 	// Redefine basic properties of the build info object
 	clientConfig.setIncludeEnvVars(true)
 	clientConfig.info.addEnvironmentProperty('test.adding.dynVar', new java.util.Date().toString())
-	clientConfig.info.setBuildName('DroidLib-v17')
+	clientConfig.info.setBuildName('IabLib-v17')
 	clientConfig.info.setBuildNumber('' + new java.util.Random(System.currentTimeMillis()).nextInt(20000))
 }

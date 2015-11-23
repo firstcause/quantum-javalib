@@ -1,0 +1,70 @@
+apply plugin: 'com.android.library'
+apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.artifactory'
+
+group = 'com.denizensoft.appcompatlib'
+version = '1.0.4'
+
+android {
+	compileSdkVersion 23
+	buildToolsVersion "23.0.1"
+
+	defaultConfig {
+		minSdkVersion 17
+		targetSdkVersion 23
+		versionCode 1
+		versionName = version
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled false
+			proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_1_7
+		targetCompatibility JavaVersion.VERSION_1_7
+	}
+
+	lintOptions {
+		disable 'TrulyRandom','SetJavaScriptEnabled'
+	}
+}
+
+dependencies {
+	compile fileTree(dir: 'libs', include: ['*.jar'])
+	compile(group: 'com.android.support', name: 'appcompat-v7', version: '23.1.1')
+	compile(group: 'com.denizensoft.jlib',		name: 'jlib-1-7', 		version: '1.0.0', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.droidlib',	name: 'droidlib-v17', 	version: '1.0.4', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.dbclient',	name: 'dbclient', 		version: '1.0.4', transitive: true, changing: true)
+}
+
+task sourcesJar(type: Jar) {
+	from android.sourceSets.main.java.srcDirs
+	classifier = 'sources'
+}
+
+task libJavaDoc(type: Javadoc) {
+	doFirst {
+		println "Source dirs: ${android.sourceSets.main.java.srcDirs}"
+	}
+	source = android.sourceSets.main.java.srcDirs
+	classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+}
+
+task javadocJar(type: Jar, dependsOn: libJavaDoc) {
+	classifier = 'javadoc'
+	from libJavaDoc.destinationDir
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			artifactId 'AppCompatLib-v17'
+			artifacts = [bundleRelease, sourcesJar]
+		}
+	}
+}
+

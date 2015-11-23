@@ -9,6 +9,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Requester extends Handler
 {
@@ -35,10 +37,9 @@ public class Requester extends Handler
 	static final public int N_RC_WARNING_NOTFOUND	= 2;
 	static final public int N_RC_USER_CANCELLED		= 3;
 
-	static private enum StateCode
+	static public enum StateCode
 	{
-		IDLE,
-		START_PENDING,
+		REQUESTER_IDLE,
 		REPLY_PENDING,
 		REPLY_READY
 	}
@@ -52,52 +53,48 @@ public class Requester extends Handler
 		USER_CANCELLED
 	}
 
-	private StateCode RequestState = StateCode.IDLE;
-
-	abstract public class TargetNode
-	{
-		Requester mRequester = null;
-
-		void attachTo(Requester requester)
-		{
-		}
-
-		public TargetNode()
-		{
-		}
-	}
+	private StateCode mRequestState = StateCode.REQUESTER_IDLE;
 
 	private TargetNode mCurrentNode = null;
 
 	private HashMap<String,TargetNode> mNodeMap = new HashMap<String,TargetNode>();
 
-	private Object mRequestMutex = new Object();
+	private final Object mRequestMutex = new Object();
 
 	private JSONObject mPendingRequest = null, mPendingReply = null;
 
-	public void addTargetNode(String stTag, TargetNode targetNode)
+	private Pattern stNodePattern = Pattern.compile("([\\w\\-\\_]+)\\:?([\\w\\-\\_]?)");
+
+	public void addTargetNode(TargetNode targetNode)
 	{
-		mNodeMap.put(stTag,targetNode);
+		mNodeMap.put(targetNode.nodeName(),targetNode);
+		targetNode.attachTo(this);
+	}
+
+	public JSONObject pendingRequest()
+	{
+		return mPendingRequest;
+	}
+
+	public JSONObject pendingReply()
+	{
+		return mPendingReply;
+	}
+
+	public StateCode updateState(StateCode stateCode)
+	{
+		return mRequestState = stateCode;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//
 	//
 	//
-
-	public void cleanupRequestHook()
-	{
-	}
-
 	public void commandHook(int nCommand, Bundle args)
 	{
 	}
 
 	public void tokenHook(String stToken, Bundle args)
-	{
-	}
-
-	public void jsonRequestHook(JSONObject jsRequest, final JSONObject jsReply)
 	{
 	}
 
@@ -115,23 +112,15 @@ public class Requester extends Handler
 	//
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	public boolean requestStartPending()
-	{
-		return( RequestState == StateCode.START_PENDING );
-	}
-
 	public boolean replyPending()
 	{
-		return( RequestState == StateCode.REPLY_PENDING );
+		return( mRequestState == StateCode.REPLY_PENDING );
 	}
 
-	public void sendReply(ReplyCode replyCode, String stMessage)
+	public void commitReply(ReplyCode replyCode, String stMessage)
 	{
-		if(mPendingReply == null)
-			return;
-
-		if(RequestState != StateCode.REPLY_PENDING)
-			return;
+		if(mRequestState != StateCode.REPLY_PENDING)
+			throw new HandlerException("Invalid state, cannot send reply!");
 
 		try
 		{
@@ -189,10 +178,9 @@ public class Requester extends Handler
 
 				}
 
-				RequestState = StateCode.REPLY_READY;
+				mRequestState = StateCode.REPLY_READY;
 				mPendingReply.notifyAll();
 				mPendingReply = null;
-				cleanupRequestHook();
 			};
 		}
 		catch(JSONException e)
@@ -214,30 +202,52 @@ public class Requester extends Handler
 
 			case N_MSG_REQUEST:
 			{
+				// Remember, there is only one looper thread, it handles the request invocations,
+				// so there is no point trying to invoke multiple requests simultaneously, as that could
+				// cause a deadlock on the request mutex, and even if the mutex were moved to the TargetNode.
+				// Yet, it is still possible thatany number of client threads may queue requests, but only
+				// ONE TargetNode can be active at any given time anyways...
+				//
+				// Sorry...the facts of life...so suck it up!
+				//
 				try
 				{
 					JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
 
-					String stAction = jsRequest.getString("$action");
+					String
+							stNodeSpec = jsRequest.getString("$nodespec"),
+							stNodeName, stAction = null;
 
-					if(!mNodeMap.containsKey(stAction))
-						throw new HandlerException(String.format("Undefined action token: %s",stAction));
+					Matcher matcher = stNodePattern.matcher(stNodeSpec);
 
-					TargetNode targetNode = mNodeMap.get(stAction);
+					if(matcher.matches())
+					{
+						stNodeName = matcher.group(1);
+						stAction = matcher.group(2);
+					}
+					else
+					{
+						stNodeName = stNodeSpec;
+					}
+
+					if(!mNodeMap.containsKey(stNodeName))
+						throw new HandlerException(String.format("Undefined action token: %s",stNodeName));
+
+					mCurrentNode = mNodeMap.get(stNodeName);
 
 					mPendingReply = (JSONObject)msg.obj;
 
+					// This here is how we release the current waiting thread
+					//
 					synchronized(mPendingReply)
 					{
-						RequestState = StateCode.START_PENDING;
-
 						// Don't monkey with this! As the request wait state can be set elsewhere!
 						// while the handler is in progress!
 						//
-						jsonRequestHook(jsRequest, mPendingReply);
+						mCurrentNode.startPendingRequest(stAction);
 
-						if(RequestState == StateCode.REPLY_PENDING)
-							Log.d("Requester", "Reply is still pending after start hook...");
+						if(mRequestState == StateCode.REPLY_PENDING)
+							Log.d("Requester", "Reply is still pending after invoke...");
 					}
 				}
 				catch(JSONException e)
@@ -306,15 +316,38 @@ public class Requester extends Handler
 
 		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
 		{
-			try
-			{
-				JSONObject jsRequest = new JSONObject(stJSON);
+			if(mRequestState == StateCode.REPLY_PENDING)
+				throw new HandlerException("Invalid requester state! A reply is pending!");
 
-				jsonRequestHook(jsRequest, jsReply);
-			}
-			catch(JSONException e)
+			// Another thread may also want to send a request, and taking turns is..
+			// Strictly enforced!!
+			//
+			synchronized(mRequestMutex)
 			{
-				throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+				try
+				{
+					JSONObject jsRequest = new JSONObject(stJSON);
+
+					String stNodeSpec = jsRequest.getString("$nodespec");
+
+					if(!mNodeMap.containsKey(stNodeSpec))
+						throw new HandlerException(String.format("Undefined action token: %s",stNodeSpec));
+
+					mCurrentNode = mNodeMap.get(stNodeSpec);
+
+					mPendingRequest = jsRequest;
+
+					mPendingReply = jsReply;
+
+					mCurrentNode.startPendingRequest(stNodeSpec);
+
+					if(mRequestState == StateCode.REPLY_PENDING)
+						Log.d("Requester", "Warning: Reply pending for current thread...");
+				}
+				catch(JSONException e)
+				{
+					throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+				}
 			}
 			return jsReply;
 		}
@@ -326,12 +359,14 @@ public class Requester extends Handler
 		msg.getData().putString("$request",stJSON);
 		msg.obj = jsReply;
 
-		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
-			throw new RuntimeException("Requester: Requesting thread id matches the handler looper id!");
-
+		// Only one requesting thread can lock this at a given time...
+		//
 		synchronized(mRequestMutex)
 		{
-			RequestState = StateCode.REPLY_PENDING;
+			if(mRequestState == StateCode.REPLY_PENDING)
+				throw new HandlerException("Invalid request state! A reply is pending?");
+
+			mRequestState = StateCode.REPLY_PENDING;
 
 			synchronized(jsReply)
 			{
@@ -339,22 +374,22 @@ public class Requester extends Handler
 
 				Log.d("Requester: " + Thread.currentThread().getId(), "Request posted, starting wait....");
 
-				while(RequestState == StateCode.REPLY_PENDING)
+				while(mRequestState == StateCode.REPLY_PENDING)
 				{
 					try
 					{
 						jsReply.wait();
 
-						Log.d("Requester: "+Thread.currentThread().getId(),"Request wait completed....");
+						Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait completed....");
 					}
 					catch(InterruptedException e)
 					{
-						Log.d("Requester: "+Thread.currentThread().getId(),"Request wait, interrupted....");
+						Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait interrupted, restarting....");
 					}
 				}
 			}
 
-			RequestState = StateCode.IDLE;
+			mRequestState = StateCode.REQUESTER_IDLE;
 		}
 		return jsReply;
 	}
