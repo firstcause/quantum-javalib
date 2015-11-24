@@ -1,4 +1,4 @@
-package com.denizensoft.iablib;/* Copyright (c) 2012 Google Inc.
+/* Copyright (c) 2012 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,9 @@ package com.denizensoft.iablib;/* Copyright (c) 2012 Google Inc.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
+package com.denizensoft.iablib;
 
 import android.app.Activity;
 import android.app.PendingIntent;

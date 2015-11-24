@@ -1,9 +1,10 @@
 apply plugin: 'com.android.library'
-apply plugin: 'maven-publish'
-apply plugin: 'com.jfrog.artifactory'
+apply plugin: "maven-publish"
+apply plugin: "com.jfrog.artifactory"
+
 
 group = 'com.denizensoft.appcompatlib'
-version = '1.0.4'
+version = '1.0.0-SNAPSHOT'
 
 android {
 	compileSdkVersion 23
@@ -37,8 +38,9 @@ dependencies {
 	compile fileTree(dir: 'libs', include: ['*.jar'])
 	compile(group: 'com.android.support', name: 'appcompat-v7', version: '23.1.1')
 	compile(group: 'com.denizensoft.jlib',		name: 'jlib-1-7', 		version: '1.0.0', transitive: true, changing: true)
-	compile(group: 'com.denizensoft.droidlib',	name: 'droidlib-v17', 	version: '1.0.4', transitive: true, changing: true)
-	compile(group: 'com.denizensoft.dbclient',	name: 'dbclient', 		version: '1.0.4', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.droidlib',	name: 'droidlib-v17', 	version: '1.0.0-SNAPSHOT', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.iablib',	name: 'iablib-v17', 	version: '1.0.0-SNAPSHOT', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.dbclient',	name: 'dbclient-v17', 		version: '1.0.0-SNAPSHOT', transitive: true, changing: true)
 }
 
 task sourcesJar(type: Jar) {
@@ -62,9 +64,85 @@ task javadocJar(type: Jar, dependsOn: libJavaDoc) {
 publishing {
 	publications {
 		mavenJava(MavenPublication) {
-			artifactId 'AppCompatLib-v17'
+			artifactId 'appcompatlib-v17'
 			artifacts = [bundleRelease, sourcesJar]
 		}
 	}
 }
 
+artifactory {
+	contextUrl = "${artifactory_contextUrl}"
+
+	publish {
+
+		repository {
+			repoKey = version.endsWith('-SNAPSHOT') ? 'libs-snapshot-local' : 'libs-release-local'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+		}
+
+		defaults {
+			// This closure defines defaults for all 'artifactoryPublish' tasks of all projects the plugin is applied to
+			// Optional list of publications (names or objects) to publish.
+			//
+			publications('mavenJava')
+
+			// properties = ['qa.level': 'basic', 'q.os': 'win32, deb, osx']  //Optional map of properties to attach to all published artifacts
+			/*
+				The properties closure in the "defaults" task uses the following syntax:
+				properties {
+					publicationName 'group:module:version:classifier@type', key1:'value1', key2:'value2', ...
+				}
+				publicationName: A valid name for a publication of the project. You can use all to apply the properties to all publications.
+				group:module:version:classifier@type: A filter that specifies the artifacts to which properties should be attached. 
+				The filter may contain wildcards: * for all characters or ? for a single character.
+				key:'value': A list of key/value properties that will be attached to to the published artifacts matching the filter. 
+			*/
+			properties {
+				//Optional closure to attach properties to artifacts based on a list of artifact patterns per project publication
+				mavenJava '*:*:*:*@*', platform: 'dalvik'
+
+				//The property platform=linux,win64 will be set on all artifacts in foo publication
+				//The property key1=val1 will be set on all artifacts part of the mavenJava publication and with group org.jfrog
+				//mavenJava 'org.jfrog:*:*:*@*', key1: 'val1'
+
+				//The properties key2 and key3 will be set on all published artifacts (all publications) with group:artifact:version 
+				//equal to org.jfrog:shared:1.?
+				// all 'org.jfrog:shared:1.?:*@*', key2: 'val2', key3: 'val3'
+			}
+
+			publishPom = true
+			publishBuildInfo = true
+			publishArtifacts = true
+		}
+	}
+
+	resolve {
+		repository {
+			repoKey = 'libs-snapshot'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+			maven = true
+		}
+
+		repository {
+			repoKey = 'libs-release'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+			maven = true
+		}
+
+		repository {
+			repoKey = 'jcenter'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+			maven = true
+		}
+	}
+
+	// Redefine basic properties of the build info object
+	clientConfig.setIncludeEnvVars(true)
+	clientConfig.info.addEnvironmentProperty('test.adding.dynVar', new java.util.Date().toString())
+	clientConfig.info.setBuildName('DBClient')
+	clientConfig.info.setBuildNumber('' + new java.util.Random(System.currentTimeMillis()).nextInt(20000))
+}

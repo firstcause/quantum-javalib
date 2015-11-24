@@ -3,7 +3,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
 group = 'com.denizensoft.droidlib'
-version = '1.0.4'
+version = '1.0.0-SNAPSHOT'
 
 android {
 	compileSdkVersion 23
@@ -67,12 +67,13 @@ publishing {
 }
 
 artifactory {
+
 	contextUrl = "${artifactory_contextUrl}"
 
 	publish {
 
 		repository {
-			repoKey = 'libs-release-local'
+			repoKey = version.endsWith('-SNAPSHOT') ? 'libs-snapshot-local' : 'libs-release-local'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 		}
@@ -115,7 +116,7 @@ artifactory {
 
 	resolve {
 		repository {
-			repoKey = 'jcenter'
+			repoKey = 'libs-snapshot'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 			maven = true
@@ -123,6 +124,13 @@ artifactory {
 
 		repository {
 			repoKey = 'libs-release'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+			maven = true
+		}
+
+		repository {
+			repoKey = 'jcenter'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 			maven = true

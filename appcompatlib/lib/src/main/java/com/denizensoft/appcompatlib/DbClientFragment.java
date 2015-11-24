@@ -1,106 +1,14 @@
 package com.denizensoft.appcompatlib;
 
 import com.denizensoft.dbclient.DbClient;
-import com.denizensoft.dbclient.DbException;
-import com.denizensoft.droidlib.MsgTarget;
+import com.denizensoft.droidlib.Requester;
+import com.denizensoft.droidlib.TargetNode;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 abstract public class DbClientFragment extends AppFragment
 {
 	protected DbClient mDbClient = null;
-
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Android callbacks section
-	//
-
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// MsgTarget.HookInterface section
-	//
-	@Override
-	public void invokeRequestHook(JSONObject jsonRequest, final JSONObject jsonReply)
-	{
-		int nRC;
-
-		String stAction = null;
-
-		try
-		{
-			stAction = jsonRequest.getString("$action");
-
-			MsgTarget.ReplyCode replyCode = MsgTarget.ReplyCode.SUCCESS_REQUEST;
-
-			if(mDbClient != null)
-			{
-				if(stAction.equals("dropbyid"))
-				{
-					mDbClient.jsonDropById(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("insertrows"))
-				{
-					replyCode = mDbClient.jsonInsertRows(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("querybycolumn"))
-				{
-					replyCode = mDbClient.jsonQueryByColumn(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("querybycolumn"))
-				{
-					replyCode = mDbClient.jsonQueryByColumn(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("querybyid"))
-				{
-					replyCode = mDbClient.jsonQueryById(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("querybyselect"))
-				{
-					replyCode = mDbClient.jsonQuerySelect(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("querybysql"))
-				{
-					replyCode = mDbClient.jsonQuerySQL(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("updatebyid"))
-				{
-					replyCode = mDbClient.jsonUpdateByRowId(jsonRequest, jsonReply);
-				}
-				else if(stAction.equals("refresh-all-maps"))
-				{
-					mDbClient.refreshAllQueryMaps();
-				}
-				else if(stAction.equals("stash-state-token"))
-				{
-					String stToken = jsonRequest.getString("$token"), stValue = jsonRequest.getString("$value");
-
-					mDbClient.stashStateTokenString(stToken, stValue);
-				}
-				else
-				{
-					// not ours, try the super...
-					//
-					super.invokeRequestHook(jsonRequest, jsonReply);
-				}
-
-				messageTarget().sendReply(replyCode,null);
-			}
-			else
-			{
-				// can't handle even if ours, so pass it to the super...
-				//
-				super.invokeRequestHook(jsonRequest, jsonReply);
-			}
-		}
-		catch(DbException e)
-		{
-			mAppInterface.appFatalErrorHook("Db Exception",
-					String.format("Action: %s Message: %s", stAction, e.getMessage()));
-		}
-		catch(JSONException e)
-		{
-			mAppInterface.appFatalErrorHook("JSON Exception",
-					String.format("Action: %s Message: %s", stAction, e.getMessage()));
-		}
-	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// new DbClientFragment methods
@@ -117,6 +25,60 @@ abstract public class DbClientFragment extends AppFragment
 
 	public DbClientFragment()
 	{
-		requester().addTargetNode();
+		requester().addTargetNode(new TargetNode("dbclient"){
+			@Override
+			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			{
+				Requester.ReplyCode replyCode = Requester.ReplyCode.SUCCESS_REQUEST;
+
+				if(mDbClient != null)
+				{
+					if(stAction.equals("dropbyid"))
+					{
+						mDbClient.jsonDropById(jsRequest, jsReply);
+					}
+					else if(stAction.equals("insertrows"))
+					{
+						replyCode = mDbClient.jsonInsertRows(jsRequest, jsReply);
+					}
+					else if(stAction.equals("querybycolumn"))
+					{
+						replyCode = mDbClient.jsonQueryByColumn(jsRequest, jsReply);
+					}
+					else if(stAction.equals("querybycolumn"))
+					{
+						replyCode = mDbClient.jsonQueryByColumn(jsRequest, jsReply);
+					}
+					else if(stAction.equals("querybyid"))
+					{
+						replyCode = mDbClient.jsonQueryById(jsRequest, jsReply);
+					}
+					else if(stAction.equals("querybyselect"))
+					{
+						replyCode = mDbClient.jsonQuerySelect(jsRequest, jsReply);
+					}
+					else if(stAction.equals("querybysql"))
+					{
+						replyCode = mDbClient.jsonQuerySQL(jsRequest, jsReply);
+					}
+					else if(stAction.equals("updatebyid"))
+					{
+						replyCode = mDbClient.jsonUpdateByRowId(jsRequest, jsReply);
+					}
+					else if(stAction.equals("refresh-all-maps"))
+					{
+						mDbClient.refreshAllQueryMaps();
+					}
+					else if(stAction.equals("stash-state-token"))
+					{
+						String stToken = jsRequest.getString("$token"), stValue = jsRequest.getString("$value");
+
+						mDbClient.stashStateTokenString(stToken, stValue);
+					}
+
+					requester().commitReply(replyCode, null);
+				}
+			}
+		});
 	}
 }

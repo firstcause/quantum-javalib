@@ -8,9 +8,9 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
+import com.denizensoft.droidlib.Requester;
 import com.denizensoft.jlib.Tempus;
 import com.denizensoft.droidlib.Crypter;
-import com.denizensoft.droidlib.MsgTarget;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -180,11 +180,11 @@ public class DbClient
 		return jsRowset;
 	}
 
-	public MsgTarget.ReplyCode jsonInsertRows(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonInsertRows(JSONObject jsRequest, final JSONObject jsReply) throws DbException, JSONException
 	{
-		String stColumn, stValue, stTableName = jsonRequest.getString("$tableName");
+		String stColumn, stValue, stTableName = jsRequest.getString("$tableName");
 
-		JSONArray jsRowset = jsonRequest.getJSONArray("$rowset");
+		JSONArray jsRowset = jsRequest.getJSONArray("$rowset");
 
 		ContentValues values = new ContentValues();
 
@@ -213,10 +213,10 @@ public class DbClient
 
 		refreshAllQueryMaps();
 
-		return MsgTarget.ReplyCode.SUCCESS_REQUEST;
+		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public MsgTarget.ReplyCode jsonQueryByColumn(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonQueryByColumn(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
 	{
 		String
 				stTableName = jsonRequest.getString("$tableName"),
@@ -231,7 +231,7 @@ public class DbClient
 		}
 		catch(DbNotFoundException e)
 		{
-			return MsgTarget.ReplyCode.WARNING_NOTFOUND;
+			return Requester.ReplyCode.WARNING_NOTFOUND;
 		}
 
 		int nMaxRows = 20;
@@ -243,10 +243,10 @@ public class DbClient
 
 		jsonReply.put("$rowset", jsRowset);
 
-		return MsgTarget.ReplyCode.SUCCESS_REQUEST;
+		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public MsgTarget.ReplyCode jsonQueryById(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonQueryById(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
 	{
 		String
 				stTableName = jsonRequest.getString("$tableName"),
@@ -262,7 +262,7 @@ public class DbClient
 		{
 			jsonReply.put("$warning","QUERY: Row not found: "+stRowId);
 
-			return MsgTarget.ReplyCode.WARNING_NOTFOUND;
+			return Requester.ReplyCode.WARNING_NOTFOUND;
 		}
 
 		jsonReply.put("$tableName", stTableName);
@@ -283,10 +283,10 @@ public class DbClient
 			else
 				jsonRow.put(stKey, JSONObject.NULL);
 		}
-		return MsgTarget.ReplyCode.SUCCESS_REQUEST;
+		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public MsgTarget.ReplyCode jsonQuerySelect(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonQuerySelect(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
 	{
 		String
 				stTableName = jsonRequest.getString("$tableName"),
@@ -318,7 +318,7 @@ public class DbClient
 		Cursor cursor = readableDB().query(stTableName, null, stSelect, stArgs, stGroupBy, null, stOrderBy);
 
 		if(cursor.getCount() == 0)
-			return MsgTarget.ReplyCode.WARNING_NOTFOUND;
+			return Requester.ReplyCode.WARNING_NOTFOUND;
 
 		int nMaxRows = 20;
 
@@ -347,10 +347,10 @@ public class DbClient
 		cursor.close();
 		cursor = null;
 
-		return MsgTarget.ReplyCode.SUCCESS_REQUEST;
+		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public MsgTarget.ReplyCode jsonQuerySQL(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonQuerySQL(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
 	{
 		String stSQL = jsonRequest.getString("$sql");
 
@@ -376,7 +376,7 @@ public class DbClient
 		Cursor cursor = readableDB().rawQuery(stSQL, stArgs);
 
 		if(cursor.getCount() == 0)
-			return MsgTarget.ReplyCode.WARNING_NOTFOUND;
+			return Requester.ReplyCode.WARNING_NOTFOUND;
 
 		cursor.moveToFirst();
 
@@ -392,10 +392,10 @@ public class DbClient
 
 		cursor.close();
 
-		return MsgTarget.ReplyCode.SUCCESS_REQUEST;
+		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public MsgTarget.ReplyCode jsonUpdateByRowId(JSONObject jsonRequest, JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonUpdateByRowId(JSONObject jsonRequest, JSONObject jsonReply) throws DbException, JSONException
 	{
 		String stRowId = null, stColumn, stValue, stTableName = jsonRequest.getString("$tableName");
 
@@ -428,7 +428,7 @@ public class DbClient
 
 			updateValuesAtRowId(stTableName, Long.parseLong(stRowId), values);
 		}
-		return MsgTarget.ReplyCode.SUCCESS_REQUEST;
+		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
 	public ContentQueryMap execQuerySpec(String stTableName,String stMapKey,JSONObject jsQueryArgs) throws DbException

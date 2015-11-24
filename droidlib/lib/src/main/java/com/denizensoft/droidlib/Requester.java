@@ -8,6 +8,7 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,18 +58,25 @@ public class Requester extends Handler
 
 	private TargetNode mCurrentNode = null;
 
-	private HashMap<String,TargetNode> mNodeMap = new HashMap<String,TargetNode>();
+	private HashMap<String,TargetNode> mTargetMap = new HashMap<String,TargetNode>();
+
+	private ArrayList<TokenNode> mTokenNodeList = new ArrayList<>();
 
 	private final Object mRequestMutex = new Object();
 
 	private JSONObject mPendingRequest = null, mPendingReply = null;
 
-	private Pattern stNodePattern = Pattern.compile("([\\w\\-\\_]+)\\:?([\\w\\-\\_]?)");
+	private Pattern stNodePattern = Pattern.compile("([\\w\\-\\_]+)\\.?([\\w\\-\\_]?)");
 
 	public void addTargetNode(TargetNode targetNode)
 	{
-		mNodeMap.put(targetNode.nodeName(),targetNode);
+		mTargetMap.put(targetNode.nodeName(),targetNode);
 		targetNode.attachTo(this);
+	}
+
+	public void addTokenNode(TokenNode tokenNode)
+	{
+		mTokenNodeList.add(tokenNode);
 	}
 
 	public JSONObject pendingRequest()
@@ -89,29 +97,6 @@ public class Requester extends Handler
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//
 	//
-	//
-	public void commandHook(int nCommand, Bundle args)
-	{
-	}
-
-	public void tokenHook(String stToken, Bundle args)
-	{
-	}
-
-	public void notificationHook(int nNotify, Bundle args)
-	{
-	}
-
-	public boolean otherMessageHook(Message msg)
-	{
-		return false;
-	}
-
-	//
-	//
-	//
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
 	public boolean replyPending()
 	{
 		return( mRequestState == StateCode.REPLY_PENDING );
@@ -194,12 +179,6 @@ public class Requester extends Handler
 	{
 		switch(msg.what)
 		{
-			case N_MSG_COMMAND:
-			{
-				commandHook(msg.arg1,msg.getData());
-			}
-			break;
-
 			case N_MSG_REQUEST:
 			{
 				// Remember, there is only one looper thread, it handles the request invocations,
@@ -230,10 +209,10 @@ public class Requester extends Handler
 						stNodeName = stNodeSpec;
 					}
 
-					if(!mNodeMap.containsKey(stNodeName))
+					if(!mTargetMap.containsKey(stNodeName))
 						throw new HandlerException(String.format("Undefined action token: %s",stNodeName));
 
-					mCurrentNode = mNodeMap.get(stNodeName);
+					mCurrentNode = mTargetMap.get(stNodeName);
 
 					mPendingReply = (JSONObject)msg.obj;
 
@@ -257,18 +236,20 @@ public class Requester extends Handler
 			}
 			break;
 
-			case N_MSG_NOTIFY:
-			{
-				notificationHook(msg.arg1,msg.getData());
-			}
-			break;
-
 			case N_MSG_TOKEN:
 			{
-				String stToken = msg.getData().getString("_msg_token");
+				String stToken = msg.getData().getString("$token");
 
 				if(stToken != null)
-					tokenHook(stToken,msg.getData());
+				{
+					for(TokenNode node: mTokenNodeList)
+					{
+						Matcher matcher = node.tokenSpecification().matcher(stToken);
+
+						if(matcher.matches())
+							node.tokenHandler(matcher.group(1),msg.getData());
+					}
+				}
 			}
 			break;
 
@@ -319,8 +300,8 @@ public class Requester extends Handler
 			if(mRequestState == StateCode.REPLY_PENDING)
 				throw new HandlerException("Invalid requester state! A reply is pending!");
 
-			// Another thread may also want to send a request, and taking turns is..
-			// Strictly enforced!!
+			// Another thread may also want to send a request...
+			// so taking turns is Strictly Enforced!!
 			//
 			synchronized(mRequestMutex)
 			{
@@ -328,18 +309,32 @@ public class Requester extends Handler
 				{
 					JSONObject jsRequest = new JSONObject(stJSON);
 
-					String stNodeSpec = jsRequest.getString("$nodespec");
+					String
+							stNodeSpec = jsRequest.getString("$nodespec"),
+							stNodeName, stAction = null;
 
-					if(!mNodeMap.containsKey(stNodeSpec))
-						throw new HandlerException(String.format("Undefined action token: %s",stNodeSpec));
+					Matcher matcher = stNodePattern.matcher(stNodeSpec);
 
-					mCurrentNode = mNodeMap.get(stNodeSpec);
+					if(matcher.matches())
+					{
+						stNodeName = matcher.group(1);
+						stAction = matcher.group(2).substring(1);
+					}
+					else
+					{
+						stNodeName = stNodeSpec;
+					}
+
+					if(!mTargetMap.containsKey(stNodeName))
+						throw new HandlerException(String.format("Undefined action token: %s",stNodeName));
+
+					mCurrentNode = mTargetMap.get(stNodeName);
 
 					mPendingRequest = jsRequest;
 
 					mPendingReply = jsReply;
 
-					mCurrentNode.startPendingRequest(stNodeSpec);
+					mCurrentNode.startPendingRequest(stAction);
 
 					if(mRequestState == StateCode.REPLY_PENDING)
 						Log.d("Requester", "Warning: Reply pending for current thread...");

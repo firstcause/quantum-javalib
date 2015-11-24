@@ -16,7 +16,7 @@ buildscript {
 	dependencies {
 		//Check for the latest version here: http://plugins.gradle.org/plugin/com.jfrog.artifactory
 		classpath 'com.android.tools.build:gradle:1.2.3'
-		classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:3.1.1'
+		classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:3.1.2'
 	}
 }
 
@@ -27,6 +27,14 @@ allprojects {
 		mavenLocal()
 
 		maven {
+			url "${artifactory_contextUrl}/libs-snapshot"
+			credentials {
+				username = "${artifactory_user}"
+				password = "${artifactory_password}"
+			}
+		}
+
+		maven {
 			url "${artifactory_contextUrl}/libs-release"
 			credentials {
 				username = "${artifactory_user}"
@@ -35,6 +43,7 @@ allprojects {
 		}
 
 		jcenter()
+
 		mavenCentral()
 	}
 }

@@ -24,6 +24,8 @@ public class AppFragment extends Fragment implements
 
 	protected AppInterface mAppInterface = null;
 
+	protected AppFragment mSelf = this;
+
 	private Requester mRequester = new Requester();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////

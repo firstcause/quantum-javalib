@@ -4,17 +4,16 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-
 import com.denizensoft.dbclient.DbException;
+import com.denizensoft.droidlib.Requester;
+import com.denizensoft.droidlib.TargetNode;
+import com.denizensoft.droidlib.WorkItem;
 import com.denizensoft.iablib.IabHelper;
 import com.denizensoft.iablib.IabResult;
 import com.denizensoft.iablib.Inventory;
 import com.denizensoft.iablib.Purchase;
 import com.denizensoft.jlib.LibException;
 import com.denizensoft.jlib.Tempus;
-import com.denizensoft.oshelper.MsgTarget;
-import com.denizensoft.oshelper.WorkItem;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -39,198 +38,6 @@ public class IABFragment extends WebAppFragment implements
 	protected JSONObject mIabRequest=null, mIabReply=null;
 
 	protected String stInventoryStamp = null;
-
-	protected Requester mRequester = new Requester()
-	{
-		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// MsgTarget.HookInterface section
-		//
-		@Override
-		public void cleanupRequestHook()
-		{
-			super.cleanupRequestHook();
-
-			mIabRequest = null;
-			mIabReply = null;
-		}
-
-		@Override
-		public void jsonRequestHook(JSONObject jsonRequest, final JSONObject jsonReply)
-		{
-			int nRC;
-
-			String stAction = null, s1 = null, s2 = null;
-
-			try
-			{
-				stAction = jsonRequest.getString("$action");
-
-				if(stAction.equals("invoke-async-requester"))
-				{
-					try
-					{
-						WorkItem asyncRequester = new AsyncRequester(jsonRequest);
-
-						asyncRequester.execute();
-
-						sendReply(MsgTarget.ReplyCode.SUCCESS_REQUEST,null);
-					}
-					catch(LibException e)
-					{
-						s1 = String.format(Locale.US,"AsyncRequester exception: %s", e.getMessage());
-
-						Log.e("IAB",s1);
-
-						mAppInterface.appFatalErrorHook("IAB Request",s1);
-					}
-				}
-				else if(stAction.equals("iab-query-inventory-async"))
-				{
-					mIabRequest = jsonRequest;
-					mIabReply = jsonReply;
-
-					if(mInventory == null ||
-							jsonRequest.has("$param") && jsonRequest.getString("$param").equals("force-requery"))
-					{
-						mIabHelper.queryInventoryAsync(this);
-					}
-					else
-					{
-						Log.d("IAB Inventory", "com.denizensoft.iablib.Inventory already present, refresh not requested...");
-
-						mIabReply.put("$iabrc", 0);
-
-						sendReply(MsgTarget.ReplyCode.SUCCESS_REQUEST, null);
-					}
-				}
-				else if(stAction.equals("iab-inventory-status"))
-				{
-					jsonReply.put("$status", ( mInventory != null ? "ready" : "notready"));
-					jsonReply.put("$timestamp", ( mInventory != null ? stInventoryStamp : "(none)"));
-
-					messageTarget().sendReply(MsgTarget.ReplyCode.SUCCESS_REQUEST, null);
-				}
-				else if(stAction.equals("iab-consume-async"))
-				{
-					s1 = jsonRequest.getString("$sku");
-
-					if(mInventory == null)
-					{
-						Log.e("IAB","Can't do consume, the inventory is empty!");
-
-						sendReply(MsgTarget.ReplyCode.CRITICAL_ERROR,"Can't do consume, the inventory is empty!");
-					}
-					else
-					{
-						if(!mInventory.hasPurchase(s1))
-						{
-							messageTarget().sendReply(MsgTarget.ReplyCode.WARNING_NOTFOUND,
-									String.format(Locale.US,"Item not in inventory: %s",s1));
-						}
-						else
-						{
-							Log.d("IAB", String.format(Locale.US,"Starting consume, item: %s", s1));
-
-							mIabRequest = jsonRequest;
-							mIabReply = jsonReply;
-
-							mIabHelper.consumeAsync(mInventory.getPurchase(s1), this);
-						}
-					}
-
-				}
-				else if(stAction.equals("iab-update-inventory-cache"))
-				{
-					if(mInventory == null)
-					{
-						messageTarget().sendReply(MsgTarget.ReplyCode.WARNING_NOTFOUND,"No inventory to cache yet!");
-					}
-					else
-					{
-						List<Purchase> purchases = mInventory.getAllPurchases();
-
-						for(Purchase purchase: purchases)
-							updateIabCache(purchase);
-
-						try
-						{
-							dbc().stashStateTokenString("IAB_INVENTORY_STATUS","valid");
-						}
-						catch(DbException e)
-						{
-							mAppInterface.appFatalErrorHook("IAB","Couldn't update the IAB_INVENTORY_STATUS!");
-						}
-
-						sendReply(MsgTarget.ReplyCode.SUCCESS_REQUEST,null);
-					}
-				}
-				else if(stAction.equals("iab-purchase-subscription"))
-				{
-					s1 = jsonRequest.getString("$sku");
-					s2 = jsonRequest.getString("$tag-string");
-
-					if(mInventory != null && mInventory.hasPurchase(s1))
-					{
-						messageTarget().sendReply(MsgTarget.ReplyCode.SUCCESS_REQUEST, null);
-					}
-					else
-					{
-						mIabRequest = jsonRequest;
-						mIabReply = jsonReply;
-
-						mIabHelper.launchSubscriptionPurchaseFlow(mAppActivity, s1, 16661, this, s2);
-					}
-				}
-				else if(stAction.equals("iab-purchase-managed"))
-				{
-					s1 = jsonRequest.getString("$sku");
-					s2 = jsonRequest.getString("$tag-string");
-
-					if(mInventory != null && mInventory.hasPurchase(s1))
-					{
-						messageTarget().sendReply(MsgTarget.ReplyCode.SUCCESS_REQUEST, null);
-					}
-					else
-					{
-						mIabRequest = jsonRequest;
-						mIabReply = jsonReply;
-
-						mIabHelper.launchPurchaseFlow(mAppActivity, s1, 16661, this, s2);
-					}
-				}
-				else if(stAction.equals("iab-has-purchase"))
-				{
-					s1 = jsonRequest.getString("$sku");
-
-					if(mInventory == null)
-					{
-						mRequester.sendReply(MsgTarget.ReplyCode.WARNING_MESSAGE,
-								"Can't check for purchase, inventory not ready!");
-					}
-					else
-					{
-						if(mInventory.hasPurchase(s1))
-						{
-							mRequester.sendReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
-						}
-						else
-						{
-							mRequester.sendReply(Requester.ReplyCode.WARNING_NOTFOUND, null);
-						}
-					}
-				}
-				else
-				{
-					super.invokeRequestHook(jsonRequest, jsonReply);
-				}
-			}
-			catch(JSONException e)
-			{
-				mAppInterface.appFatalErrorHook("JSON Exception",
-						String.format(Locale.US,"Action: %s Message: %s", stAction, e.getMessage()));
-			}
-		}
-	};
 
 	protected class AsyncRequester extends WorkItem
 	{
@@ -295,7 +102,7 @@ public class IABFragment extends WebAppFragment implements
 				{
 					Log.d("AsyncRequester",String.format("Starting retry: %d of %d", i+1, nRetries));
 
-					if(testReplySuccessful(messageTarget().sendRequest(jsRequest)))
+					if(testReplySuccessful(requester().sendRequest(jsRequest)))
 					{
 						Log.d("AsyncRequester", "Request completed, exit retry loop!");
 
@@ -339,7 +146,7 @@ public class IABFragment extends WebAppFragment implements
 				{
 					JSONObject jsAction = jsScriptArray.getJSONObject(i);
 
-					JSONObject jsReply = messageTarget().sendRequest(jsAction);
+					JSONObject jsReply = requester().sendRequest(jsAction);
 
 					if(jsReply == null)
 					{
@@ -571,7 +378,7 @@ public class IABFragment extends WebAppFragment implements
 			{
 				Log.d("IAB Request", "JSON request present, sending reply...");
 				mIabReply.put("$iabrc", result.getResponse());
-				mRequester.sendReply(Requester.ReplyCode.SUCCESS_REQUEST,null);
+				requester().commitReply(Requester.ReplyCode.SUCCESS_REQUEST,null);
 			}
 			catch(JSONException e)
 			{
@@ -597,5 +404,168 @@ public class IABFragment extends WebAppFragment implements
 
 	public IABFragment()
 	{
+		requester().addTargetNode(new TargetNode("iab"){
+			
+			@Override
+			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			{
+				String s1, s2;
+				
+				if(stAction.equals("invoke-async-requester"))
+				{
+					try
+					{
+						WorkItem asyncRequester = new AsyncRequester(jsRequest);
+
+						asyncRequester.execute();
+
+						commitReply(Requester.ReplyCode.SUCCESS_REQUEST,null);
+					}
+					catch(LibException e)
+					{
+						s1 = String.format(Locale.US,"AsyncRequester exception: %s", e.getMessage());
+
+						Log.e("IAB",s1);
+
+						mAppInterface.appFatalErrorHook("IAB Request",s1);
+					}
+				}
+				else if(stAction.equals("iab-query-inventory-async"))
+				{
+					mIabRequest = jsRequest;
+					mIabReply = jsReply;
+
+					if(mInventory == null ||
+							jsRequest.has("$param") && jsRequest.getString("$param").equals("force-requery"))
+					{
+						mIabHelper.queryInventoryAsync((IABFragment)mSelf);
+					}
+					else
+					{
+						Log.d("IAB Inventory", "com.denizensoft.iablib.Inventory already present, refresh not requested...");
+
+						mIabReply.put("$iabrc", 0);
+
+						commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
+					}
+				}
+				else if(stAction.equals("iab-inventory-status"))
+				{
+					jsReply.put("$status", ( mInventory != null ? "ready" : "notready"));
+					jsReply.put("$timestamp", ( mInventory != null ? stInventoryStamp : "(none)"));
+
+					requester().commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
+				}
+				else if(stAction.equals("iab-consume-async"))
+				{
+					s1 = jsRequest.getString("$sku");
+
+					if(mInventory == null)
+					{
+						Log.e("IAB","Can't do consume, the inventory is empty!");
+
+						commitReply(Requester.ReplyCode.CRITICAL_ERROR,"Can't do consume, the inventory is empty!");
+					}
+					else
+					{
+						if(!mInventory.hasPurchase(s1))
+						{
+							requester().commitReply(Requester.ReplyCode.WARNING_NOTFOUND,
+									String.format(Locale.US,"Item not in inventory: %s",s1));
+						}
+						else
+						{
+							Log.d("IAB", String.format(Locale.US,"Starting consume, item: %s", s1));
+
+							mIabRequest = jsRequest;
+							mIabReply = jsReply;
+
+							mIabHelper.consumeAsync(mInventory.getPurchase(s1), (IABFragment)mSelf);
+						}
+					}
+
+				}
+				else if(stAction.equals("iab-update-inventory-cache"))
+				{
+					if(mInventory == null)
+					{
+						requester().commitReply(Requester.ReplyCode.WARNING_NOTFOUND,"No inventory to cache yet!");
+					}
+					else
+					{
+						List<Purchase> purchases = mInventory.getAllPurchases();
+
+						for(Purchase purchase: purchases)
+							updateIabCache(purchase);
+
+						try
+						{
+							dbc().stashStateTokenString("IAB_INVENTORY_STATUS","valid");
+						}
+						catch(DbException e)
+						{
+							mAppInterface.appFatalErrorHook("IAB","Couldn't update the IAB_INVENTORY_STATUS!");
+						}
+
+						commitReply(Requester.ReplyCode.SUCCESS_REQUEST,null);
+					}
+				}
+				else if(stAction.equals("iab-purchase-subscription"))
+				{
+					s1 = jsRequest.getString("$sku");
+					s2 = jsRequest.getString("$tag-string");
+
+					if(mInventory != null && mInventory.hasPurchase(s1))
+					{
+						requester().commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
+					}
+					else
+					{
+						mIabRequest = jsRequest;
+						mIabReply = jsReply;
+
+						mIabHelper.launchSubscriptionPurchaseFlow(mAppActivity, s1, 16661, (IABFragment)mSelf, s2);
+					}
+				}
+				else if(stAction.equals("iab-purchase-managed"))
+				{
+					s1 = jsRequest.getString("$sku");
+					s2 = jsRequest.getString("$tag-string");
+
+					if(mInventory != null && mInventory.hasPurchase(s1))
+					{
+						requester().commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
+					}
+					else
+					{
+						mIabRequest = jsRequest;
+						mIabReply = jsReply;
+
+						mIabHelper.launchPurchaseFlow(mAppActivity, s1, 16661, (IABFragment)mSelf, s2);
+					}
+				}
+				else if(stAction.equals("iab-has-purchase"))
+				{
+					s1 = jsRequest.getString("$sku");
+
+					if(mInventory == null)
+					{
+						requester().commitReply(Requester.ReplyCode.WARNING_MESSAGE,
+								"Can't check for purchase, inventory not ready!");
+					}
+					else
+					{
+						if(mInventory.hasPurchase(s1))
+						{
+							requester().commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
+						}
+						else
+						{
+							requester().commitReply(Requester.ReplyCode.WARNING_NOTFOUND, null);
+						}
+					}
+				}
+			}
+		});
 	}
 }

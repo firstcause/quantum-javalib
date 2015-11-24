@@ -3,7 +3,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
 group = 'com.denizensoft.iablib'
-version = '1.0.4'
+version = '1.0.0-SNAPSHOT'
 
 android {
 	compileSdkVersion 23
@@ -37,7 +37,7 @@ dependencies {
 	compile fileTree(dir: 'libs', include: ['*.jar'])
 	compile(group: 'com.android.support', name: 'appcompat-v7', version: '23.1.1')
 	compile(group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0', transitive: true, changing: true)
-	compile(group: 'com.denizensoft.droidlib', name: 'droidlib-v17', version: '1.0.4', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.droidlib', name: 'droidlib-v17', version: '1.0.0-SNAPSHOT', transitive: true, changing: true)
 }
 
 task sourcesJar(type: Jar) {
@@ -73,7 +73,7 @@ artifactory {
 	publish {
 
 		repository {
-			repoKey = 'libs-release-local'
+			repoKey = version.endsWith('-SNAPSHOT') ? 'libs-snapshot-local' : 'libs-release-local'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 		}
@@ -116,7 +116,7 @@ artifactory {
 
 	resolve {
 		repository {
-			repoKey = 'jcenter'
+			repoKey = 'libs-snapshot'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 			maven = true
@@ -124,6 +124,13 @@ artifactory {
 
 		repository {
 			repoKey = 'libs-release'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
+			maven = true
+		}
+
+		repository {
+			repoKey = 'jcenter'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 			maven = true

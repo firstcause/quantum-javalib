@@ -5,21 +5,9 @@ import android.app.Dialog;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.webkit.JavascriptInterface;
-import android.webkit.JsPromptResult;
-import android.webkit.JsResult;
-import android.webkit.WebChromeClient;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-
+import android.webkit.*;
+import com.denizensoft.droidlib.*;
 import com.denizensoft.jlib.Tempus;
-import com.denizensoft.oshelper.JsAlertDlg;
-import com.denizensoft.oshelper.JsApiInterface;
-import com.denizensoft.oshelper.JsConfirmDlg;
-import com.denizensoft.oshelper.JsPromptDlg;
-import com.denizensoft.oshelper.MsgTarget;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -128,7 +116,7 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 
 		Log.d("jsJsonRequest", "Sending request, with JSON: " + stJSON);
 
-		JSONObject jsReply = messageTarget().sendRequest(stJSON);
+		JSONObject jsReply = requester().sendRequest(stJSON);
 
 		if(jsReply != null)
 		{
@@ -215,40 +203,6 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// MsgTarget.HookInterface overrides
-	//
-	@Override
-	public void invokeRequestHook(JSONObject jsonRequest, final JSONObject jsonReply)
-	{
-		String stAction = null;
-
-		try
-		{
-			stAction = jsonRequest.getString("$action");
-
-			if(stAction.equals("load-page"))
-			{
-				String stPageSpec = String.format("%s/%s",stHtmlFolder,jsonRequest.getString("$pagespec"));
-
-				webView().loadUrl(stPageSpec);
-			}
-			else
-			{
-				// not ours, try the super...
-				//
-				super.invokeRequestHook(jsonRequest, jsonReply);
-			}
-		}
-		catch(JSONException e)
-		{
-			mAppInterface.appFatalErrorHook("WebApp",
-					String.format("JSON Exception: Action: %s Message: %s", stAction, e.getMessage()));
-		}
-
-		messageTarget().sendReply(MsgTarget.ReplyCode.SUCCESS_REQUEST, null);
-	}
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// new WebAppFragment methods
 	//
 	public WebView webView()
@@ -258,5 +212,17 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 
 	public WebAppFragment()
 	{
+		requester().addTargetNode(new TargetNode("webapp"){
+			@Override
+			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			{
+				if(stAction.equals("load-page"))
+				{
+					String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
+
+					webView().loadUrl(stPageSpec);
+				}
+			}
+		});
 	}
 }
