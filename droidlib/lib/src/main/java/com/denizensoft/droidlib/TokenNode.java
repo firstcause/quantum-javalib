@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 /**
  * Created by sjm on 11/23/15.
  */
-public class TokenNode
+public class TokenNode extends RequesterNode
 {
 	private Pattern rxCategorySpec = null;
 
@@ -21,18 +21,21 @@ public class TokenNode
 		return rxCategorySpec;
 	}
 
-	public TokenNode()
+	public TokenNode(Object owner)
 	{
+		super(owner,null);
 		this.rxCategorySpec = Pattern.compile(".*");
 	}
 
-	public TokenNode(Pattern rxCategorySpec)
+	public TokenNode(Object owner,Pattern rxCategorySpec)
 	{
+		super(owner,null);
 		this.rxCategorySpec = rxCategorySpec;
 	}
 
-	public TokenNode(String stCategorySpec)
+	public TokenNode(Object owner,String stCategorySpec)
 	{
+		super(owner,null);
 		rxCategorySpec = Pattern.compile(stCategorySpec);
 	}
 }

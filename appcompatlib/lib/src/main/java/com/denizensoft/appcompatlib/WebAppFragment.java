@@ -116,7 +116,7 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 
 		Log.d("jsJsonRequest", "Sending request, with JSON: " + stJSON);
 
-		JSONObject jsReply = requester().sendRequest(stJSON);
+		JSONObject jsReply = mAppInterface.requester().sendRequest(stJSON);
 
 		if(jsReply != null)
 		{
@@ -200,6 +200,19 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 		webSettings.setUseWideViewPort(true);
 		webSettings.setBuiltInZoomControls(false);
 		webSettings.setSupportZoom(true);
+
+		mAppInterface.requester().addTargetNode(new TargetNode(this,"webapp"){
+			@Override
+			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			{
+				if(stAction.equals("load-page"))
+				{
+					String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
+
+					webView().loadUrl(stPageSpec);
+				}
+			}
+		});
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -212,17 +225,5 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 
 	public WebAppFragment()
 	{
-		requester().addTargetNode(new TargetNode("webapp"){
-			@Override
-			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
-			{
-				if(stAction.equals("load-page"))
-				{
-					String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
-
-					webView().loadUrl(stPageSpec);
-				}
-			}
-		});
 	}
 }

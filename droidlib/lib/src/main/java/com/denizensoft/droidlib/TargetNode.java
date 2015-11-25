@@ -6,10 +6,8 @@ import org.json.JSONObject;
 /**
  * Created by sjm on 11/22/15.
  */
-public class TargetNode
+public class TargetNode extends RequesterNode
 {
-	private final String mNodeName;
-
 	protected Requester mRequester = null;
 
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -52,11 +50,6 @@ public class TargetNode
 	//
 	// public API
 	//
-	public String nodeName()
-	{
-		return mNodeName;
-	}
-
 	public Requester requester()
 	{
 		return mRequester;
@@ -87,9 +80,8 @@ public class TargetNode
 		commitReply(Requester.ReplyCode.SUCCESS_REQUEST,stMessage);
 	}
 
-	public TargetNode(String stName)
+	public TargetNode(Object owner, String stName)
 	{
-		mNodeName = stName;
+		super(owner,stName);
 	}
 }
-

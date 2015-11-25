@@ -7,7 +7,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
-import com.denizensoft.droidlib.Requester;
 import com.denizensoft.droidlib.TargetNode;
 import com.denizensoft.droidlib.UpdateNotifier;
 import org.json.JSONException;
@@ -23,10 +22,6 @@ public class AppFragment extends Fragment implements
 	protected AppActivity mAppActivity = null;
 
 	protected AppInterface mAppInterface = null;
-
-	protected AppFragment mSelf = this;
-
-	private Requester mRequester = new Requester();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Android overrides
@@ -49,7 +44,7 @@ public class AppFragment extends Fragment implements
 
 		mAppInterface = (AppActivity)view.getContext();
 
-		mRequester.addTargetNode(new TargetNode("appfragment"){
+		mAppInterface.requester().addTargetNode(new TargetNode(this,"appfragment"){
 
 			@Override
 			public void invokeRequest(String stAction,JSONObject jsRequest, JSONObject jsReply) throws JSONException
@@ -162,11 +157,6 @@ public class AppFragment extends Fragment implements
 	public void notifyContentUpdated()
 	{
 		// Default, do nothing...
-	}
-
-	public Requester requester()
-	{
-		return mRequester;
 	}
 
 	protected void updateFragmentUI()

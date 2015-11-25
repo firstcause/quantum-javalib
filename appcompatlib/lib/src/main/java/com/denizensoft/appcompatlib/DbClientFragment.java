@@ -1,5 +1,7 @@
 package com.denizensoft.appcompatlib;
 
+import android.os.Bundle;
+import android.view.View;
 import com.denizensoft.dbclient.DbClient;
 import com.denizensoft.droidlib.Requester;
 import com.denizensoft.droidlib.TargetNode;
@@ -23,9 +25,12 @@ abstract public class DbClientFragment extends AppFragment
 		mDbClient = dbClient;
 	}
 
-	public DbClientFragment()
+	@Override
+	public void onViewCreated(View view, Bundle savedInstanceState)
 	{
-		requester().addTargetNode(new TargetNode("dbclient"){
+		super.onViewCreated(view, savedInstanceState);
+
+		mAppInterface.requester().addTargetNode(new TargetNode(this,"dbclient"){
 			@Override
 			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
 			{
@@ -80,5 +85,9 @@ abstract public class DbClientFragment extends AppFragment
 				}
 			}
 		});
+	}
+
+	public DbClientFragment()
+	{
 	}
 }

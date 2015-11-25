@@ -36,7 +36,7 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 
 	protected UpdateNotifier mNotifier = null;
 
-	protected Requester mRequester = new Requester();
+	private Requester mRequester = new Requester();
 
 	protected AlertDialog.Builder mMainAlertDialogBuilder = null;
 
@@ -199,6 +199,18 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	}
 
 	@Override
+	public String getTagValue(String stTag)
+	{
+		return null;
+	}
+
+	@Override
+	public Requester requester()
+	{
+		return mRequester;
+	}
+
+	@Override
 	public Date packageBuildTimestamp()
 	{
 		try
@@ -222,17 +234,18 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 		return null;
 	}
 
+	@Override
+	public void setTagValue(String stTag, String stValue)
+	{
+
+	}
+
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// new AppActivity methods
 	//
 	protected void doAppInvokeBusyHandler()
 	{
 		setProgressBarIndeterminateVisibility(true);
-	}
-
-	public Requester requester()
-	{
-		return mRequester;
 	}
 
 	public void restartActivity()
