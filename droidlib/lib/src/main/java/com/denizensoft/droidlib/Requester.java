@@ -66,17 +66,27 @@ public class Requester extends Handler
 
 	private JSONObject mPendingRequest = null, mPendingReply = null;
 
-	private Pattern stNodePattern = Pattern.compile("([\\w\\-\\_]+)\\.?([\\w\\-\\_]?)");
+	protected Pattern mMatchSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
 
 	public void addTargetNode(TargetNode targetNode)
 	{
-		mTargetMap.put(targetNode.nodeName(),targetNode);
+		mTargetMap.put(targetNode.nodeTag(),targetNode);
 		targetNode.attachTo(this);
 	}
 
 	public void addTokenNode(TokenNode tokenNode)
 	{
 		mTokenNodeList.add(tokenNode);
+	}
+
+	public Pattern matchSpec()
+	{
+		return mMatchSpec;
+	}
+
+	public void setMatchSpec(Pattern pattern)
+	{
+		mMatchSpec = pattern;
 	}
 
 	public JSONObject pendingRequest()
@@ -195,24 +205,20 @@ public class Requester extends Handler
 
 					String
 							stNodeSpec = jsRequest.getString("$nodespec"),
-							stNodeName, stAction = null;
+							stNodeTag, stMethod = null;
 
-					Matcher matcher = stNodePattern.matcher(stNodeSpec);
+					Matcher matcher = mMatchSpec.matcher(stNodeSpec);
 
-					if(matcher.matches())
-					{
-						stNodeName = matcher.group(1);
-						stAction = matcher.group(2);
-					}
-					else
-					{
-						stNodeName = stNodeSpec;
-					}
+					if(!matcher.matches())
+						throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
 
-					if(!mTargetMap.containsKey(stNodeName))
-						throw new HandlerException(String.format("Undefined action token: %s",stNodeName));
+					stNodeTag = matcher.group(1);
+					stMethod = matcher.group(2);
 
-					mCurrentNode = mTargetMap.get(stNodeName);
+					if(!mTargetMap.containsKey(stNodeTag))
+						throw new HandlerException(String.format("Undefined action token: %s",stNodeTag));
+
+					mCurrentNode = mTargetMap.get(stNodeTag);
 
 					mPendingReply = (JSONObject)msg.obj;
 
@@ -223,7 +229,7 @@ public class Requester extends Handler
 						// Don't monkey with this! As the request wait state can be set elsewhere!
 						// while the handler is in progress!
 						//
-						mCurrentNode.startPendingRequest(stAction);
+						mCurrentNode.startPendingRequest(stMethod);
 
 						if(mRequestState == StateCode.REPLY_PENDING)
 							Log.d("Requester", "Reply is still pending after invoke...");
@@ -311,24 +317,20 @@ public class Requester extends Handler
 
 					String
 							stNodeSpec = jsRequest.getString("$nodespec"),
-							stNodeName, stAction = null;
+							stNodeTag, stAction = null;
 
-					Matcher matcher = stNodePattern.matcher(stNodeSpec);
+					Matcher matcher = mMatchSpec.matcher(stNodeSpec);
 
-					if(matcher.matches())
-					{
-						stNodeName = matcher.group(1);
-						stAction = matcher.group(2).substring(1);
-					}
-					else
-					{
-						stNodeName = stNodeSpec;
-					}
+					if(!matcher.matches())
+						throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
 
-					if(!mTargetMap.containsKey(stNodeName))
-						throw new HandlerException(String.format("Undefined action token: %s",stNodeName));
+					stNodeTag = matcher.group(1);
+					stAction = matcher.group(2);
 
-					mCurrentNode = mTargetMap.get(stNodeName);
+					if(!mTargetMap.containsKey(stNodeTag))
+						throw new HandlerException(String.format("Undefined action token: %s",stNodeTag));
+
+					mCurrentNode = mTargetMap.get(stNodeTag);
 
 					mPendingRequest = jsRequest;
 
@@ -420,7 +422,7 @@ public class Requester extends Handler
 		if(args == null)
 			args = new Bundle();
 
-		args.putString("_msg_token",stToken);
+		args.putString("$token",stToken);
 
 		msg.setData(args);
 

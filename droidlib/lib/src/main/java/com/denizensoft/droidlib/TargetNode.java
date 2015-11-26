@@ -17,7 +17,7 @@ public class TargetNode extends RequesterNode
 		mRequester = requester;
 	}
 
-	public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+	public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
 	{
 		throw new HandlerException("Undefined invocation handler!");
 	}
@@ -38,7 +38,7 @@ public class TargetNode extends RequesterNode
 	{
 		try
 		{
-			invokeRequest(stAction, mRequester.pendingRequest(),mRequester.pendingReply());
+			invokeMethod(stAction, mRequester.pendingRequest(),mRequester.pendingReply());
 		}
 		catch(JSONException e)
 		{
@@ -80,8 +80,8 @@ public class TargetNode extends RequesterNode
 		commitReply(Requester.ReplyCode.SUCCESS_REQUEST,stMessage);
 	}
 
-	public TargetNode(Object owner, String stName)
+	public TargetNode(Object owner, String stClass)
 	{
-		super(owner,stName);
+		super(owner,stClass);
 	}
 }

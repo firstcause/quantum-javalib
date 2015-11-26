@@ -47,9 +47,9 @@ public class AppFragment extends Fragment implements
 		mAppInterface.requester().addTargetNode(new TargetNode(this,"appfragment"){
 
 			@Override
-			public void invokeRequest(String stAction,JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			public void invokeMethod(String stMethod,JSONObject jsRequest, JSONObject jsReply) throws JSONException
 			{
-				switch(stAction.substring(1))
+				switch(stMethod.substring(1))
 				{
 					case "show-toast" :
 					{

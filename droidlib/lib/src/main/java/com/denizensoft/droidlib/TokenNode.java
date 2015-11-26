@@ -24,7 +24,7 @@ public class TokenNode extends RequesterNode
 	public TokenNode(Object owner)
 	{
 		super(owner,null);
-		this.rxCategorySpec = Pattern.compile(".*");
+		this.rxCategorySpec = Pattern.compile("((.*))");
 	}
 
 	public TokenNode(Object owner,Pattern rxCategorySpec)

@@ -32,49 +32,49 @@ abstract public class DbClientFragment extends AppFragment
 
 		mAppInterface.requester().addTargetNode(new TargetNode(this,"dbclient"){
 			@Override
-			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
 			{
 				Requester.ReplyCode replyCode = Requester.ReplyCode.SUCCESS_REQUEST;
 
 				if(mDbClient != null)
 				{
-					if(stAction.equals("dropbyid"))
+					if(stMethod.equals("dropbyid"))
 					{
 						mDbClient.jsonDropById(jsRequest, jsReply);
 					}
-					else if(stAction.equals("insertrows"))
+					else if(stMethod.equals("insertrows"))
 					{
 						replyCode = mDbClient.jsonInsertRows(jsRequest, jsReply);
 					}
-					else if(stAction.equals("querybycolumn"))
+					else if(stMethod.equals("querybycolumn"))
 					{
 						replyCode = mDbClient.jsonQueryByColumn(jsRequest, jsReply);
 					}
-					else if(stAction.equals("querybycolumn"))
+					else if(stMethod.equals("querybycolumn"))
 					{
 						replyCode = mDbClient.jsonQueryByColumn(jsRequest, jsReply);
 					}
-					else if(stAction.equals("querybyid"))
+					else if(stMethod.equals("querybyid"))
 					{
 						replyCode = mDbClient.jsonQueryById(jsRequest, jsReply);
 					}
-					else if(stAction.equals("querybyselect"))
+					else if(stMethod.equals("querybyselect"))
 					{
 						replyCode = mDbClient.jsonQuerySelect(jsRequest, jsReply);
 					}
-					else if(stAction.equals("querybysql"))
+					else if(stMethod.equals("querybysql"))
 					{
 						replyCode = mDbClient.jsonQuerySQL(jsRequest, jsReply);
 					}
-					else if(stAction.equals("updatebyid"))
+					else if(stMethod.equals("updatebyid"))
 					{
 						replyCode = mDbClient.jsonUpdateByRowId(jsRequest, jsReply);
 					}
-					else if(stAction.equals("refresh-all-maps"))
+					else if(stMethod.equals("refresh-all-maps"))
 					{
 						mDbClient.refreshAllQueryMaps();
 					}
-					else if(stAction.equals("stash-state-token"))
+					else if(stMethod.equals("stash-state-token"))
 					{
 						String stToken = jsRequest.getString("$token"), stValue = jsRequest.getString("$value");
 

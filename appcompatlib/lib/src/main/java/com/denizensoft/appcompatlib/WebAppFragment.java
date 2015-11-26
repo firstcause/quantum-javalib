@@ -203,9 +203,9 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 
 		mAppInterface.requester().addTargetNode(new TargetNode(this,"webapp"){
 			@Override
-			public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
 			{
-				if(stAction.equals("load-page"))
+				if(stMethod.equals("load-page"))
 				{
 					String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
 

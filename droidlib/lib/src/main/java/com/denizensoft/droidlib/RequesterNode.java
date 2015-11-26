@@ -7,15 +7,15 @@ abstract public class RequesterNode
 {
 	private final Object mOwner;
 
-	private final String mNodeName;
+	private final String nNodeTag;
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 	//
 	// public API
 	//
-	public String nodeName()
+	public String nodeTag()
 	{
-		return mNodeName;
+		return nNodeTag;
 	}
 
 	public Object nodeOwner()
@@ -23,10 +23,10 @@ abstract public class RequesterNode
 		return mOwner;
 	}
 
-	public RequesterNode(Object owner, String stName)
+	public RequesterNode(Object owner, String stClass)
 	{
 		mOwner = owner;
-		mNodeName = stName;
+		nNodeTag = stClass;
 	}
 }
 

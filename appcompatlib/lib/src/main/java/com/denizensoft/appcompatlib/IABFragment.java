@@ -263,11 +263,11 @@ public class IABFragment extends WebAppFragment implements
 			mAppInterface.requester().addTargetNode(new TargetNode(this,"iab"){
 
 				@Override
-				public void invokeRequest(String stAction, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+				public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
 				{
 					String s1, s2;
 
-					if(stAction.equals("invoke-async-requester"))
+					if(stMethod.equals("invoke-async-requester"))
 					{
 						try
 						{
@@ -286,7 +286,7 @@ public class IABFragment extends WebAppFragment implements
 							mAppInterface.appFatalErrorHook("IAB Request",s1);
 						}
 					}
-					else if(stAction.equals("iab-query-inventory-async"))
+					else if(stMethod.equals("iab-query-inventory-async"))
 					{
 						if(mInventory == null ||
 								jsRequest.has("$param") && jsRequest.getString("$param").equals("force-requery"))
@@ -302,14 +302,14 @@ public class IABFragment extends WebAppFragment implements
 							commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
 						}
 					}
-					else if(stAction.equals("iab-inventory-status"))
+					else if(stMethod.equals("iab-inventory-status"))
 					{
 						jsReply.put("$status", ( mInventory != null ? "ready" : "notready"));
 						jsReply.put("$timestamp", ( mInventory != null ? stInventoryStamp : "(none)"));
 
 						requester().commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
 					}
-					else if(stAction.equals("iab-consume-async"))
+					else if(stMethod.equals("iab-consume-async"))
 					{
 						s1 = jsRequest.getString("$sku");
 
@@ -335,7 +335,7 @@ public class IABFragment extends WebAppFragment implements
 						}
 
 					}
-					else if(stAction.equals("iab-update-inventory-cache"))
+					else if(stMethod.equals("iab-update-inventory-cache"))
 					{
 						if(mInventory == null)
 						{
@@ -360,7 +360,7 @@ public class IABFragment extends WebAppFragment implements
 							commitReply(Requester.ReplyCode.SUCCESS_REQUEST,null);
 						}
 					}
-					else if(stAction.equals("iab-purchase-subscription"))
+					else if(stMethod.equals("iab-purchase-subscription"))
 					{
 						s1 = jsRequest.getString("$sku");
 						s2 = jsRequest.getString("$tag-string");
@@ -374,7 +374,7 @@ public class IABFragment extends WebAppFragment implements
 							mIabHelper.launchSubscriptionPurchaseFlow(mAppActivity, s1, 16661, (IABFragment)nodeOwner(), s2);
 						}
 					}
-					else if(stAction.equals("iab-purchase-managed"))
+					else if(stMethod.equals("iab-purchase-managed"))
 					{
 						s1 = jsRequest.getString("$sku");
 						s2 = jsRequest.getString("$tag-string");
@@ -388,7 +388,7 @@ public class IABFragment extends WebAppFragment implements
 							mIabHelper.launchPurchaseFlow(mAppActivity, s1, 16661, (IABFragment)nodeOwner(), s2);
 						}
 					}
-					else if(stAction.equals("iab-has-purchase"))
+					else if(stMethod.equals("iab-has-purchase"))
 					{
 						s1 = jsRequest.getString("$sku");
 
