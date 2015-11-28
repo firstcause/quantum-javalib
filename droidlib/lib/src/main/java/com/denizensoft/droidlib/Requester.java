@@ -247,6 +247,8 @@ public class Requester extends Handler
 				//
 				// Sorry...the facts of life...so suck it up!
 				//
+				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
+
 				try
 				{
 					JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
@@ -283,7 +285,8 @@ public class Requester extends Handler
 						mRequestNode.startRequest(stMethod);
 
 						if(mRequestState == StateCode.REPLY_PENDING)
-							Log.d("Requester", "Reply is still pending after invoke...");
+							Log.d("Requester", String.format("%08X: Reply pending after invoke...",
+									Thread.currentThread().getId()));
 					}
 				}
 				catch(JSONException e)
@@ -370,16 +373,22 @@ public class Requester extends Handler
 	{
 		JSONObject jsReply = new JSONObject();
 
+		String stTag = String.format("%08X: Requester",Thread.currentThread().getId());
+
 		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
 		{
 			if(mRequestState == StateCode.REPLY_PENDING)
-				throw new HandlerException("Requester: Invalid state! A reply is pending!");
+			{
+				throw new HandlerException(String.format("%s: Possible deadlock!? A reply is pending!", stTag ));
+			}
 
 			// Another thread may also want to send a request...
 			// so taking turns is Strictly Enforced!!
 			//
 			synchronized(mRequestMutex)
 			{
+				mRequestState = StateCode.REPLY_PENDING;
+
 				try
 				{
 					JSONObject jsRequest = new JSONObject(stJSON);
@@ -391,13 +400,16 @@ public class Requester extends Handler
 					Matcher matcher = mMatchSpec.matcher(stNodeSpec);
 
 					if(!matcher.matches())
-						throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
+					{
+						throw new HandlerException(String.format("%s: Malformed node spec not matched: %s",
+								stTag, stNodeSpec));
+					}
 
 					stNodeTag = matcher.group(1);
 					stAction = matcher.group(2);
 
 					if(!mTargetMap.containsKey(stNodeTag))
-						throw new HandlerException(String.format("Undefined action token: %s",stNodeTag));
+						throw new HandlerException(String.format("%s Undefined action token: %s",stTag,stNodeTag));
 
 					mRequestNode = mTargetMap.get(stNodeTag);
 
@@ -408,12 +420,15 @@ public class Requester extends Handler
 					mRequestNode.startRequest(stAction);
 
 					if(mRequestState == StateCode.REPLY_PENDING)
-						Log.d("Requester", "Warn: Reply pending for current thread...");
+						Log.d(stTag, "Warn: Reply was pending for current thread...");
+
 				}
 				catch(JSONException e)
 				{
 					throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
 				}
+
+				mRequestState = StateCode.REQUESTER_IDLE;
 			}
 			return jsReply;
 		}
@@ -430,7 +445,7 @@ public class Requester extends Handler
 		synchronized(mRequestMutex)
 		{
 			if(mRequestState == StateCode.REPLY_PENDING)
-				throw new HandlerException("Invalid request state! A reply is pending?");
+				throw new HandlerException(String.format("%s: Invalid locked state, a reply is pending?",stTag));
 
 			mRequestState = StateCode.REPLY_PENDING;
 
@@ -466,9 +481,6 @@ public class Requester extends Handler
 
 		msg.what = N_MSG_TOKEN;
 		msg.arg1 = 0;
-
-		if(args == null)
-			args = new Bundle();
 
 		args.putString("$token",stToken);
 
