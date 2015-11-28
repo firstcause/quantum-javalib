@@ -6,7 +6,7 @@ import android.util.Log;
 import android.view.View;
 import com.denizensoft.dbclient.DbException;
 import com.denizensoft.droidlib.Requester;
-import com.denizensoft.droidlib.TargetNode;
+import com.denizensoft.droidlib.RequestNode;
 import com.denizensoft.droidlib.WorkItem;
 import com.denizensoft.iablib.IabHelper;
 import com.denizensoft.iablib.IabResult;
@@ -260,7 +260,7 @@ public class IABFragment extends WebAppFragment implements
 
 			mWebView.addJavascriptInterface(this, "APPAPI");
 
-			mAppInterface.requester().addTargetNode(new TargetNode(this,"iab"){
+			mAppInterface.requester().addRequestNode(new RequestNode(this,"iab"){
 
 				@Override
 				public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException

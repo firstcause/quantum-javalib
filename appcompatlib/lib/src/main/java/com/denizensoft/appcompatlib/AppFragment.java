@@ -7,7 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
-import com.denizensoft.droidlib.TargetNode;
+import com.denizensoft.droidlib.RequestNode;
 import com.denizensoft.droidlib.UpdateNotifier;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,7 +44,7 @@ public class AppFragment extends Fragment implements
 
 		mAppInterface = (AppActivity)view.getContext();
 
-		mAppInterface.requester().addTargetNode(new TargetNode(this,"appfragment"){
+		mAppInterface.requester().addRequestNode(new RequestNode(this,"appfragment"){
 
 			@Override
 			public void invokeMethod(String stMethod,JSONObject jsRequest, JSONObject jsReply) throws JSONException

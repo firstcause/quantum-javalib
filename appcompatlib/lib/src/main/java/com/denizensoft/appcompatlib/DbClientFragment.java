@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.view.View;
 import com.denizensoft.dbclient.DbClient;
 import com.denizensoft.droidlib.Requester;
-import com.denizensoft.droidlib.TargetNode;
+import com.denizensoft.droidlib.RequestNode;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -30,7 +30,7 @@ abstract public class DbClientFragment extends AppFragment
 	{
 		super.onViewCreated(view, savedInstanceState);
 
-		mAppInterface.requester().addTargetNode(new TargetNode(this,"dbclient"){
+		mAppInterface.requester().addRequestNode(new RequestNode(this,"dbclient"){
 			@Override
 			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
 			{

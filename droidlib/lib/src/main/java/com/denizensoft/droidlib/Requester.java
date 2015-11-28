@@ -5,11 +5,14 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +51,7 @@ public class Requester extends Handler
 	static public enum ReplyCode
 	{
 		CRITICAL_ERROR,
+		SUCCESS_PENDING,
 		SUCCESS_REQUEST,
 		WARNING_MESSAGE,
 		WARNING_NOTFOUND,
@@ -56,9 +60,9 @@ public class Requester extends Handler
 
 	private StateCode mRequestState = StateCode.REQUESTER_IDLE;
 
-	private TargetNode mCurrentNode = null;
+	private RequestNode mRequestNode = null;
 
-	private HashMap<String,TargetNode> mTargetMap = new HashMap<String,TargetNode>();
+	private HashMap<String,RequestNode> mTargetMap = new HashMap<String,RequestNode>();
 
 	private ArrayList<TokenNode> mTokenNodeList = new ArrayList<>();
 
@@ -68,15 +72,34 @@ public class Requester extends Handler
 
 	protected Pattern mMatchSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
 
-	public void addTargetNode(TargetNode targetNode)
+	public void addRequestNode(RequestNode requestNode)
 	{
-		mTargetMap.put(targetNode.nodeTag(),targetNode);
-		targetNode.attachTo(this);
+		mTargetMap.put(requestNode.nodeTag(), requestNode);
+		requestNode.attachTo(this);
 	}
 
 	public void addTokenNode(TokenNode tokenNode)
 	{
 		mTokenNodeList.add(tokenNode);
+	}
+
+	public void removeOwnedNodes(Object owner)
+	{
+		Iterator<TokenNode> i1 = mTokenNodeList.iterator();
+
+		while(i1.hasNext())
+		{
+			if(i1.next().nodeOwner().equals(owner))
+				i1.remove();
+		}
+
+		Iterator<Map.Entry<String,RequestNode>> i2 = mTargetMap.entrySet().iterator();
+
+		while(i2.hasNext())
+		{
+			if(i2.next().getValue().nodeOwner().equals(owner))
+				i2.remove();
+		}
 	}
 
 	public Pattern matchSpec()
@@ -117,6 +140,9 @@ public class Requester extends Handler
 		if(mRequestState != StateCode.REPLY_PENDING)
 			throw new HandlerException("Invalid state, cannot send reply!");
 
+		if(replyCode == ReplyCode.SUCCESS_PENDING)
+			replyCode = ReplyCode.SUCCESS_REQUEST;
+
 		try
 		{
 			synchronized(mPendingReply)
@@ -128,7 +154,7 @@ public class Requester extends Handler
 						mPendingReply.put("$rc",N_RC_ERROR);
 
 						if(stMessage == null)
-							stMessage = "Operation caused a general error!";
+							stMessage = "Unknown error!";
 
 						if(!mPendingReply.has("$error"))
 							mPendingReply.put("$error",stMessage);
@@ -184,6 +210,27 @@ public class Requester extends Handler
 		}
 	}
 
+	public String jsJsonRequest(String stJSON)
+	{
+		String stReply = null;
+
+		Log.d("Requester", "jsJsonRequest: Sending: " + stJSON);
+
+		JSONObject jsReply = sendRequest(stJSON);
+
+		if(jsReply != null)
+		{
+			stReply = jsReply.toString();
+
+			Log.d("Requester", "jsJsonRequest: Request complete, reply: "+stReply);
+		}
+		else
+		{
+			Log.d("Requester", "jsJsonRequest: Request cancelled!");
+		}
+		return stReply;
+	}
+
 	@Override
 	public void handleMessage(Message msg)
 	{
@@ -193,9 +240,10 @@ public class Requester extends Handler
 			{
 				// Remember, there is only one looper thread, it handles the request invocations,
 				// so there is no point trying to invoke multiple requests simultaneously, as that could
-				// cause a deadlock on the request mutex, and even if the mutex were moved to the TargetNode.
-				// Yet, it is still possible thatany number of client threads may queue requests, but only
-				// ONE TargetNode can be active at any given time anyways...
+				// cause a deadlock on the request mutex, and even if the mutex were moved to the RequestNode.
+				// Yet, it is still possible that any number of client threads may simultaneously queue
+				// requests, but on any given requester, only ONE RequestNode can be active at
+				// any given time anyways...
 				//
 				// Sorry...the facts of life...so suck it up!
 				//
@@ -218,8 +266,11 @@ public class Requester extends Handler
 					if(!mTargetMap.containsKey(stNodeTag))
 						throw new HandlerException(String.format("Undefined action token: %s",stNodeTag));
 
-					mCurrentNode = mTargetMap.get(stNodeTag);
+					mRequestNode = mTargetMap.get(stNodeTag);
 
+
+
+					mPendingRequest = jsRequest;
 					mPendingReply = (JSONObject)msg.obj;
 
 					// This here is how we release the current waiting thread
@@ -229,7 +280,7 @@ public class Requester extends Handler
 						// Don't monkey with this! As the request wait state can be set elsewhere!
 						// while the handler is in progress!
 						//
-						mCurrentNode.startPendingRequest(stMethod);
+						mRequestNode.startRequest(stMethod);
 
 						if(mRequestState == StateCode.REPLY_PENDING)
 							Log.d("Requester", "Reply is still pending after invoke...");
@@ -292,6 +343,24 @@ public class Requester extends Handler
 		sendMessage(msg);
 	}
 
+	public JSONObject nodeMethodRequest(String stNodeSpec, String[] args) throws JSONException
+	{
+		JSONObject jsRequest = new JSONObject();
+
+		jsRequest.put("$nodespec",stNodeSpec);
+
+		if(args != null)
+		{
+			JSONArray jsArgs = new JSONArray();
+
+			for(String s1 : args)
+				jsArgs.put(s1);
+
+			jsRequest.put("$args",jsArgs);
+		}
+		return sendRequest(jsRequest.toString());
+	}
+
 	public JSONObject sendRequest(JSONObject jsRequest)
 	{
 		return sendRequest(jsRequest.toString());
@@ -304,7 +373,7 @@ public class Requester extends Handler
 		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
 		{
 			if(mRequestState == StateCode.REPLY_PENDING)
-				throw new HandlerException("Invalid requester state! A reply is pending!");
+				throw new HandlerException("Requester: Invalid state! A reply is pending!");
 
 			// Another thread may also want to send a request...
 			// so taking turns is Strictly Enforced!!
@@ -330,16 +399,16 @@ public class Requester extends Handler
 					if(!mTargetMap.containsKey(stNodeTag))
 						throw new HandlerException(String.format("Undefined action token: %s",stNodeTag));
 
-					mCurrentNode = mTargetMap.get(stNodeTag);
+					mRequestNode = mTargetMap.get(stNodeTag);
 
 					mPendingRequest = jsRequest;
 
 					mPendingReply = jsReply;
 
-					mCurrentNode.startPendingRequest(stAction);
+					mRequestNode.startRequest(stAction);
 
 					if(mRequestState == StateCode.REPLY_PENDING)
-						Log.d("Requester", "Warning: Reply pending for current thread...");
+						Log.d("Requester", "Warn: Reply pending for current thread...");
 				}
 				catch(JSONException e)
 				{
@@ -391,27 +460,6 @@ public class Requester extends Handler
 		return jsReply;
 	}
 
-	public String jsJsonRequest(String stJSON)
-	{
-		String stReply = null;
-
-		Log.d("Requester", "jsJsonRequest: Sending: " + stJSON);
-
-		JSONObject jsReply = sendRequest(stJSON);
-
-		if(jsReply != null)
-		{
-			stReply = jsReply.toString();
-
-			Log.d("Requester", "jsJsonRequest: Request complete, reply: "+stReply);
-		}
-		else
-		{
-			Log.d("Requester", "jsJsonRequest: Request cancelled!");
-		}
-		return stReply;
-	}
-
 	public void sendToken(String stToken,Bundle args)
 	{
 		Message msg = obtainMessage();
@@ -429,12 +477,23 @@ public class Requester extends Handler
 		sendMessage(msg);
 	}
 
-	public Requester()
+	public void updateRequestNode(ReplyCode replyCode, String stTag, String stToken, Bundle bundle)
 	{
+		if(mRequestState != StateCode.REPLY_PENDING)
+			throw new HandlerException("Requester: invalid state, no request is pending!");
+
+		mRequestNode.updateRequestNode(stTag,stToken,bundle);
+
+		if(replyCode != ReplyCode.SUCCESS_PENDING)
+			commitReply(replyCode,null);
 	}
 
 	public Requester(Looper looper)
 	{
 		super(looper);
+	}
+
+	public Requester()
+	{
 	}
 }

@@ -14,7 +14,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Patterns;
 import com.denizensoft.dbclient.DbClient;
-import com.denizensoft.droidlib.MsgTarget;
 import com.denizensoft.droidlib.Requester;
 import com.denizensoft.droidlib.UpdateNotifier;
 
@@ -31,8 +30,6 @@ import java.util.zip.ZipFile;
 abstract public class AppActivity extends AppCompatActivity implements AppInterface
 {
 	protected String stDeviceId;
-
-	private MsgTarget mHandler = null;
 
 	protected UpdateNotifier mNotifier = null;
 
@@ -72,7 +69,7 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	{
 		stDeviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
 
-		mNotifier = new UpdateNotifier(mHandler);
+		mNotifier = new UpdateNotifier(mRequester);
 
 		mMainAlertDialogBuilder = new AlertDialog.Builder(this);
 

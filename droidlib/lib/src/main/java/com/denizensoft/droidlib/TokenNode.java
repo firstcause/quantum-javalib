@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 /**
  * Created by sjm on 11/23/15.
  */
-public class TokenNode extends RequesterNode
+public class TokenNode extends TargetNode
 {
 	private Pattern rxCategorySpec = null;
 
