@@ -135,7 +135,7 @@ public class Requester extends Handler
 		return( mRequestState == StateCode.REPLY_PENDING );
 	}
 
-	public void commitReply(ReplyCode replyCode, String stMessage)
+	public void commitReply(ReplyCode replyCode, String stMessage) throws HandlerException
 	{
 		if(mRequestState != StateCode.REPLY_PENDING)
 			throw new HandlerException("Invalid state, cannot send reply!");
@@ -266,11 +266,11 @@ public class Requester extends Handler
 					stMethod = matcher.group(2);
 
 					if(!mTargetMap.containsKey(stNodeTag))
-						throw new HandlerException(String.format("Undefined action token: %s",stNodeTag));
+					{
+						throw new HandlerException(String.format("Undefined action token: %s", stNodeTag));
+					}
 
 					mRequestNode = mTargetMap.get(stNodeTag);
-
-
 
 					mPendingRequest = jsRequest;
 					mPendingReply = (JSONObject)msg.obj;
@@ -481,6 +481,9 @@ public class Requester extends Handler
 
 		msg.what = N_MSG_TOKEN;
 		msg.arg1 = 0;
+
+		if(args == null)
+			args = new Bundle();
 
 		args.putString("$token",stToken);
 

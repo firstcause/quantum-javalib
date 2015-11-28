@@ -1,8 +1,8 @@
 package com.denizensoft.droidlib;
 
-import com.denizensoft.jlib.LibException;
+import com.denizensoft.jlib.FatalException;
 
-public class HandlerException extends LibException
+public class HandlerException extends FatalException
 {
 	public HandlerException()
 	{

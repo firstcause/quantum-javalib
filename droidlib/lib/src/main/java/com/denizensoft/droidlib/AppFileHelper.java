@@ -3,8 +3,6 @@ package com.denizensoft.droidlib;
 import android.content.Context;
 import android.util.Log;
 
-import com.denizensoft.jlib.LibException;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -321,7 +319,7 @@ public class AppFileHelper
 		return mAppFilesFolder;
 	}
 
-	public AppFileHelper(Context appContext) throws LibException
+	public AppFileHelper(Context appContext)
 	{
 		mAppContext = appContext;
 		mAppFilesFolder = mAppContext.getFilesDir();

@@ -3,8 +3,9 @@ package com.denizensoft.appcompatlib;
 import android.os.Bundle;
 import android.view.View;
 import com.denizensoft.dbclient.DbClient;
-import com.denizensoft.droidlib.Requester;
 import com.denizensoft.droidlib.RequestNode;
+import com.denizensoft.droidlib.Requester;
+import com.denizensoft.jlib.FatalException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -32,7 +33,7 @@ abstract public class DbClientFragment extends AppFragment
 
 		mAppInterface.requester().addRequestNode(new RequestNode(this,"dbclient"){
 			@Override
-			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
 			{
 				Requester.ReplyCode replyCode = Requester.ReplyCode.SUCCESS_REQUEST;
 
@@ -76,9 +77,16 @@ abstract public class DbClientFragment extends AppFragment
 					}
 					else if(stMethod.equals("stash-state-token"))
 					{
-						String stToken = jsRequest.getString("$token"), stValue = jsRequest.getString("$value");
+						try
+						{
+							String stToken = jsRequest.getString("$token"), stValue = jsRequest.getString("$value");
 
-						mDbClient.stashStateTokenString(stToken, stValue);
+							mDbClient.stashStateTokenString(stToken, stValue);
+						}
+						catch(JSONException e)
+						{
+							throw new FatalException("JSON exception in DbClientFragemnt");
+						}
 					}
 
 					requester().commitReply(replyCode, null);

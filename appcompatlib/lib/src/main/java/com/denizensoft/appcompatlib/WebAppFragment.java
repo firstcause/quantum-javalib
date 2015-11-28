@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.View;
 import android.webkit.*;
 import com.denizensoft.droidlib.*;
+import com.denizensoft.jlib.FatalException;
 import com.denizensoft.jlib.Tempus;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -203,13 +204,20 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 
 		mAppInterface.requester().addRequestNode(new RequestNode(this,"webapp"){
 			@Override
-			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
 			{
 				if(stMethod.equals("load-page"))
 				{
-					String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
+					try
+					{
+						String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
 
-					webView().loadUrl(stPageSpec);
+						webView().loadUrl(stPageSpec);
+					}
+					catch(JSONException e)
+					{
+						throw new FatalException("Parameter operation caused JSON exception",e);
+					}
 				}
 			}
 		});

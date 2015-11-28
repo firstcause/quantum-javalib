@@ -37,10 +37,10 @@ android {
 dependencies {
 	compile fileTree(dir: 'libs', include: ['*.jar'])
 	compile(group: 'com.android.support', name: 'appcompat-v7', version: '23.1.1')
-	compile(group: 'com.denizensoft.jlib',		name: 'jlib-1-7', version: '1.0.0', transitive: true, changing: true)
-	compile(group: 'com.denizensoft.droidlib',	name: 'droidlib-v17', version: '1.0.0-SNAPSHOT', transitive: true, changing: true)
-	compile(group: 'com.denizensoft.iablib',	name: 'iablib-v17', version: '1.0.0-SNAPSHOT', transitive: true, changing: true)
-	compile(group: 'com.denizensoft.dbclient',	name: 'dbclient-v17', version: '1.0.0-SNAPSHOT', transitive: true, changing: true)
+	compile(group: 'com.denizensoft.jlib',		name: 'jlib-1-7', version: '1.0.0-SNAPSHOT', changing: true)
+	compile(group: 'com.denizensoft.droidlib',	name: 'droidlib-v17', version: '1.0.0-SNAPSHOT', changing: true)
+	compile(group: 'com.denizensoft.iablib',	name: 'iablib-v17', version: '1.0.0-SNAPSHOT', changing: true)
+	compile(group: 'com.denizensoft.dbclient',	name: 'dbclient-v17', version: '1.0.0-SNAPSHOT', changing: true)
 }
 
 task sourcesJar(type: Jar) {

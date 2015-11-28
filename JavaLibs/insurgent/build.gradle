@@ -3,14 +3,14 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
 group = 'com.denizensoft.insurgent'
-version = '1.0.0'
+version = '1.0.0-SNAPSHOT'
 
 dependencies {
 	compile fileTree(include: ['*.jar'], dir: 'libs')
 		
 	testCompile (group: 'junit', name: 'junit', version: '4.12', transitive: true )
 		
-	compile (group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0', changing: true, transitive: true )
+	compile (group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0-SNAPSHOT', changing: true, transitive: true )
 }
 
 task sourceJar(type: Jar, dependsOn: classes) {
@@ -47,7 +47,7 @@ artifactory {
 	publish {
 
 		repository {
-			repoKey = 'libs-release-local'
+			repoKey = version.endsWith('-SNAPSHOT') ? 'libs-snapshot-local' : 'libs-release-local'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 		}
@@ -90,7 +90,9 @@ artifactory {
 
 	resolve {
 		repository {
-			repoKey = 'jcenter'
+			repoKey = 'libs-snapshot'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
 			maven = true
 		}
 
@@ -102,17 +104,16 @@ artifactory {
 		}
 
 		repository {
-			repoKey = 'libs-release-local'
+			repoKey = 'jcenter'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 			maven = true
 		}
-
 	}
 
 	// Redefine basic properties of the build info object
 	clientConfig.setIncludeEnvVars(true)
 	clientConfig.info.addEnvironmentProperty('test.adding.dynVar',new java.util.Date().toString())
-	clientConfig.info.setBuildName('Insurgent-JDK')
+	clientConfig.info.setBuildName('Insurgent-1-7')
 	clientConfig.info.setBuildNumber('' + new java.util.Random(System.currentTimeMillis()).nextInt(20000))
 }

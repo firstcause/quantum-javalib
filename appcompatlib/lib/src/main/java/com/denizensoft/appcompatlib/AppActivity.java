@@ -18,6 +18,7 @@ import com.denizensoft.droidlib.Requester;
 import com.denizensoft.droidlib.UpdateNotifier;
 
 import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.regex.Pattern;
@@ -27,7 +28,7 @@ import java.util.zip.ZipFile;
 /**
  * Created by sjm on 1/29/2015.
  */
-abstract public class AppActivity extends AppCompatActivity implements AppInterface
+abstract public class AppActivity extends AppCompatActivity implements AppInterface, UncaughtExceptionHandler
 {
 	protected String stDeviceId;
 
@@ -38,6 +39,14 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	protected AlertDialog.Builder mMainAlertDialogBuilder = null;
 
 	protected ArrayList<ResultListener> mResultListeners = null;
+
+	@Override
+	public void uncaughtException(Thread thread, Throwable ex)
+	{
+		Log.d("Runtime Exception",ex.getMessage());
+
+		appAlertDialog("Runtime Exception",ex.getMessage());
+	}
 
 	public interface ResultListener
 	{
@@ -72,6 +81,8 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 		mNotifier = new UpdateNotifier(mRequester);
 
 		mMainAlertDialogBuilder = new AlertDialog.Builder(this);
+
+		Thread.currentThread().setUncaughtExceptionHandler(this);
 
 		super.onCreate(savedInstanceState);
 	}

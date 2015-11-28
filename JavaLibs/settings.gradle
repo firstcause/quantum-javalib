@@ -1,3 +1,4 @@
-include ':jlib',':insurgent',':oshelper',':dbclient',':iablib',':applib',':appcompatlib'
+// include ':jlib',':insurgent'
+include ':jlib'
 
 

@@ -9,6 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
 import com.denizensoft.droidlib.Requester;
+import com.denizensoft.jlib.FatalException;
 import com.denizensoft.jlib.Tempus;
 import com.denizensoft.droidlib.Crypter;
 
@@ -102,51 +103,65 @@ public class DbClient
 		refreshQueryMap(StateToken.TABLE_NAME);
 	}
 
-	public void jsonDropById(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public void jsonDropById(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException
 	{
-		String
-				stTableName = jsonRequest.getString("$tableName"),
-				stRowId = jsonRequest.getString("$rowId");
-
-		dropRecordAt(stTableName, Long.parseLong(stRowId));
-	}
-
-	public JSONArray jsonMakeRowsetArray(Cursor cursor, int nMaxRows) throws JSONException
-	{
-		int i = 0, nCount = cursor.getCount();
-
-		String stColumn, stValue;
-
-		JSONArray jsRowset = new JSONArray();
-
-		if(nCount > nMaxRows)
-			nCount = nMaxRows;
-
-		for(i=0; i < nCount; ++i)
+		try
 		{
-			JSONObject jsonRow = new JSONObject();
+			String
+					stTableName = jsonRequest.getString("$tableName"),
+					stRowId = jsonRequest.getString("$rowId");
 
-			cursor.moveToPosition(i);
-
-			for(int j = 0; j < cursor.getColumnCount(); ++j)
-			{
-				stColumn = cursor.getColumnName(j);
-				stValue = cursor.getString(j);
-
-				Log.d("DBC",String.format("Column: %s Value: %s",stColumn,stValue));
-
-				if(stValue != null)
-					jsonRow.put(stColumn,stValue);
-				else
-					jsonRow.put(stColumn,JSONObject.NULL);
-			}
-
-			jsRowset.put(jsonRow);
+			dropRecordAt(stTableName, Long.parseLong(stRowId));
 		}
-		return jsRowset;
+		catch(JSONException e)
+		{
+			throw new FatalException(String.format("DbClient:jsonDropById: JSON exception"),e);
+		}
 	}
 
-	public JSONArray jsonMakeRowsetArray(Map<String,ContentValues> rowMap, int nMaxRows) throws JSONException
+	public JSONArray jsonMakeRowsetArray(Cursor cursor, int nMaxRows)
+	{
+		try
+		{
+			int i = 0, nCount = cursor.getCount();
+
+			String stColumn, stValue;
+
+			JSONArray jsRowset = new JSONArray();
+
+			if(nCount > nMaxRows)
+				nCount = nMaxRows;
+
+			for(i=0; i < nCount; ++i)
+			{
+				JSONObject jsonRow = new JSONObject();
+
+				cursor.moveToPosition(i);
+
+				for(int j = 0; j < cursor.getColumnCount(); ++j)
+				{
+					stColumn = cursor.getColumnName(j);
+					stValue = cursor.getString(j);
+
+					Log.d("DBC",String.format("Column: %s Value: %s",stColumn,stValue));
+
+					if(stValue != null)
+						jsonRow.put(stColumn,stValue);
+					else
+						jsonRow.put(stColumn,JSONObject.NULL);
+				}
+
+				jsRowset.put(jsonRow);
+			}
+			return jsRowset;
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException(String.format("DbClient:jsonMakeRowSetArray: JSON exception"),e);
+		}
+	}
+
+	public JSONArray jsonMakeRowsetArray(Map<String,ContentValues> rowMap, int nMaxRows)
 	{
 		int nCount = 0;
 
@@ -154,61 +169,75 @@ public class DbClient
 
 		JSONArray jsRowset = new JSONArray();
 
-		for(Map.Entry<String,ContentValues> row : rowMap.entrySet())
+		try
 		{
-			JSONObject jsonRow = new JSONObject();
-
-			jsonRow.put("$rowId",row.getKey());
-
-			ContentValues values = row.getValue();
-
-			for(String stKey : values.keySet())
+			for(Map.Entry<String,ContentValues> row : rowMap.entrySet())
 			{
-				stValue = values.getAsString(stKey);
+				JSONObject jsonRow = new JSONObject();
 
-				if(stValue != null)
-					jsonRow.put(stKey,stValue);
-				else
-					jsonRow.put(stKey,JSONObject.NULL);
+				jsonRow.put("$rowId",row.getKey());
+
+				ContentValues values = row.getValue();
+
+				for(String stKey : values.keySet())
+				{
+					stValue = values.getAsString(stKey);
+
+					if(stValue != null)
+						jsonRow.put(stKey,stValue);
+					else
+						jsonRow.put(stKey,JSONObject.NULL);
+				}
+
+				jsRowset.put(jsonRow);
+
+				if(++nCount >= nMaxRows)
+					break;
 			}
-
-			jsRowset.put(jsonRow);
-
-			if(++nCount >= nMaxRows)
-				break;
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException(String.format("DbClient:jsonMakeRowSetArray: JSON exception"),e);
 		}
 		return jsRowset;
 	}
 
-	public Requester.ReplyCode jsonInsertRows(JSONObject jsRequest, final JSONObject jsReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonInsertRows(JSONObject jsRequest, final JSONObject jsReply) throws DbException
 	{
-		String stColumn, stValue, stTableName = jsRequest.getString("$tableName");
-
-		JSONArray jsRowset = jsRequest.getJSONArray("$rowset");
-
-		ContentValues values = new ContentValues();
-
-		for(int i = 0; i < jsRowset.length(); ++i)
+		try
 		{
-			values.clear();
+			String stColumn, stValue, stTableName = jsRequest.getString("$tableName");
 
-			JSONObject jsRow = jsRowset.getJSONObject(i);
+			JSONArray jsRowset = jsRequest.getJSONArray("$rowset");
 
-			Iterator<String> iterator = jsRow.keys();
+			ContentValues values = new ContentValues();
 
-			while(iterator.hasNext())
+			for(int i = 0; i < jsRowset.length(); ++i)
 			{
-				stColumn = iterator.next();
-				stValue = jsRow.getString(stColumn);
+				values.clear();
 
-				if(stValue != null && stValue != JSONObject.NULL)
-					values.put(stColumn, stValue);
+				JSONObject jsRow = jsRowset.getJSONObject(i);
+
+				Iterator<String> iterator = jsRow.keys();
+
+				while(iterator.hasNext())
+				{
+					stColumn = iterator.next();
+					stValue = jsRow.getString(stColumn);
+
+					if(stValue != null && stValue != JSONObject.NULL)
+						values.put(stColumn, stValue);
+				}
+
+				long nRowId = writableDB().insert(stTableName,null,values);
+
+				if(nRowId <= 0)
+					throw new DbException("JSON: Couldn't insert row!");
 			}
-
-			long nRowId = writableDB().insert(stTableName,null,values);
-
-			if(nRowId <= 0)
-				throw new DbException("JSON: Couldn't insert row!");
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException(String.format("DbClient:jsonInsertRows: JSON exception"),e);
 		}
 
 		refreshAllQueryMaps();
@@ -216,217 +245,249 @@ public class DbClient
 		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public Requester.ReplyCode jsonQueryByColumn(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonQueryByColumn(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException
 	{
-		String
-				stTableName = jsonRequest.getString("$tableName"),
-				stColumn = jsonRequest.getString("$column"),
-				stValue = jsonRequest.getString("$value");
-
-		TreeMap<String,ContentValues> treeMap;
-
 		try
 		{
-			treeMap = queryValuesByColumn(stTableName, stColumn, stValue);
+			String
+					stTableName = jsonRequest.getString("$tableName"),
+					stColumn = jsonRequest.getString("$column"),
+					stValue = jsonRequest.getString("$value");
+
+			TreeMap<String,ContentValues> treeMap;
+
+			try
+			{
+				treeMap = queryValuesByColumn(stTableName, stColumn, stValue);
+			}
+			catch(DbNotFoundException e)
+			{
+				return Requester.ReplyCode.WARNING_NOTFOUND;
+			}
+
+			int nMaxRows = 20;
+
+			if(jsonRequest.has("$maxrows"))
+				nMaxRows = jsonRequest.getInt("$maxrows");
+
+			JSONArray jsRowset = jsonMakeRowsetArray(treeMap, nMaxRows);
+
+			jsonReply.put("$rowset", jsRowset);
 		}
-		catch(DbNotFoundException e)
+		catch(JSONException e)
 		{
-			return Requester.ReplyCode.WARNING_NOTFOUND;
+			throw new FatalException(String.format("DbClient:jsonQueryByColumn: JSON exception"),e);
 		}
-
-		int nMaxRows = 20;
-
-		if(jsonRequest.has("$maxrows"))
-			nMaxRows = jsonRequest.getInt("$maxrows");
-
-		JSONArray jsRowset = jsonMakeRowsetArray(treeMap, nMaxRows);
-
-		jsonReply.put("$rowset", jsRowset);
-
 		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public Requester.ReplyCode jsonQueryById(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonQueryById(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException
 	{
-		String
-				stTableName = jsonRequest.getString("$tableName"),
-				stRowId = jsonRequest.getString("$rowId"), stValue;
-
-		TreeMap<String,ContentValues> treeMap = null;
-
-		treeMap = getTreeMap(stTableName);
-
-		ContentValues values = treeMap.get(stRowId);
-
-		if(values == null)
+		try
 		{
-			jsonReply.put("$warning","QUERY: Row not found: "+stRowId);
+			String
+					stTableName = jsonRequest.getString("$tableName"),
+					stRowId = jsonRequest.getString("$rowId"), stValue;
 
-			return Requester.ReplyCode.WARNING_NOTFOUND;
+			TreeMap<String,ContentValues> treeMap = null;
+
+			treeMap = getTreeMap(stTableName);
+
+			ContentValues values = treeMap.get(stRowId);
+
+			if(values == null)
+			{
+				jsonReply.put("$warning","QUERY: Row not found: "+stRowId);
+
+				return Requester.ReplyCode.WARNING_NOTFOUND;
+			}
+
+			jsonReply.put("$tableName", stTableName);
+			jsonReply.put("$rowset",new JSONArray());
+
+			jsonReply.getJSONArray("$rowset").put(new JSONObject());
+
+			JSONObject jsonRow = jsonReply.getJSONArray("$rowset").getJSONObject(0);
+
+			jsonRow.put("$rowId",stRowId);
+
+			for(String stKey : values.keySet())
+			{
+				stValue = values.getAsString(stKey);
+
+				if(stValue != null)
+					jsonRow.put(stKey, stValue);
+				else
+					jsonRow.put(stKey, JSONObject.NULL);
+			}
 		}
-
-		jsonReply.put("$tableName", stTableName);
-		jsonReply.put("$rowset",new JSONArray());
-
-		jsonReply.getJSONArray("$rowset").put(new JSONObject());
-
-		JSONObject jsonRow = jsonReply.getJSONArray("$rowset").getJSONObject(0);
-
-		jsonRow.put("$rowId",stRowId);
-
-		for(String stKey : values.keySet())
+		catch(JSONException e)
 		{
-			stValue = values.getAsString(stKey);
+			throw new FatalException(String.format("DbClient:jsonQueryById: JSON exception"),e);
+		}
+		return Requester.ReplyCode.SUCCESS_REQUEST;
+	}
 
-			if(stValue != null)
-				jsonRow.put(stKey, stValue);
+	public Requester.ReplyCode jsonQuerySelect(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException
+	{
+		try
+		{
+			String
+					stTableName = jsonRequest.getString("$tableName"),
+
+					stSelect = jsonRequest.getString("$select"),		// not optional!!
+					stIndexKey = ( jsonRequest.has("$indexkey") ? jsonRequest.getString("$indexkey") : "_id" ),
+					stGroupBy = ( jsonRequest.has("$groupby") ? jsonRequest.getString("$groupby") : null ),
+					stOrderBy = ( jsonRequest.has("$orderby") ? jsonRequest.getString("$orderby") : null );
+
+			String[] stArgs = null;
+
+			if(jsonRequest.has("$args"))
+			{
+				Log.d("DBC", "Args found in request...");
+
+				JSONArray jsonArgsArray = jsonRequest.getJSONArray("$args");
+
+				if(jsonArgsArray != null)
+				{
+					stArgs = new String[jsonArgsArray.length()];
+
+					for(int i = 0; i < jsonArgsArray.length(); ++i)
+						stArgs[i] = jsonArgsArray.getString(i);
+				}
+			}
+
+			Log.d("DBC", "Order by: "+stOrderBy);
+
+			Cursor cursor = readableDB().query(stTableName, null, stSelect, stArgs, stGroupBy, null, stOrderBy);
+
+			if(cursor.getCount() == 0)
+				return Requester.ReplyCode.WARNING_NOTFOUND;
+
+			int nMaxRows = 20;
+
+			if(jsonRequest.has("$maxrows"))
+				nMaxRows = jsonRequest.getInt("$maxrows");
+
+			JSONArray jsRowset = null;
+
+			if(stGroupBy == null && stOrderBy == null)
+			{
+				ContentQueryMap queryMap = new ContentQueryMap(cursor,stIndexKey,false,null);
+
+				jsRowset = jsonMakeRowsetArray(queryMap.getRows(), nMaxRows);
+
+				queryMap.close();
+				queryMap = null;
+			}
 			else
-				jsonRow.put(stKey, JSONObject.NULL);
-		}
-		return Requester.ReplyCode.SUCCESS_REQUEST;
-	}
-
-	public Requester.ReplyCode jsonQuerySelect(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
-	{
-		String
-				stTableName = jsonRequest.getString("$tableName"),
-
-				stSelect = jsonRequest.getString("$select"),		// not optional!!
-				stIndexKey = ( jsonRequest.has("$indexkey") ? jsonRequest.getString("$indexkey") : "_id" ),
-				stGroupBy = ( jsonRequest.has("$groupby") ? jsonRequest.getString("$groupby") : null ),
-				stOrderBy = ( jsonRequest.has("$orderby") ? jsonRequest.getString("$orderby") : null );
-
-		String[] stArgs = null;
-
-		if(jsonRequest.has("$args"))
-		{
-			Log.d("DBC", "Args found in request...");
-
-			JSONArray jsonArgsArray = jsonRequest.getJSONArray("$args");
-
-			if(jsonArgsArray != null)
 			{
-				stArgs = new String[jsonArgsArray.length()];
-
-				for(int i = 0; i < jsonArgsArray.length(); ++i)
-					stArgs[i] = jsonArgsArray.getString(i);
+				jsRowset = jsonMakeRowsetArray(cursor, nMaxRows);
 			}
+
+			jsonReply.put("$tableName",stTableName);
+			jsonReply.put("$rowset", jsRowset);
+
+			cursor.close();
+			cursor = null;
 		}
-
-		Log.d("DBC", "Order by: "+stOrderBy);
-
-		Cursor cursor = readableDB().query(stTableName, null, stSelect, stArgs, stGroupBy, null, stOrderBy);
-
-		if(cursor.getCount() == 0)
-			return Requester.ReplyCode.WARNING_NOTFOUND;
-
-		int nMaxRows = 20;
-
-		if(jsonRequest.has("$maxrows"))
-			nMaxRows = jsonRequest.getInt("$maxrows");
-
-		JSONArray jsRowset = null;
-
-		if(stGroupBy == null && stOrderBy == null)
+		catch(JSONException e)
 		{
-			ContentQueryMap queryMap = new ContentQueryMap(cursor,stIndexKey,false,null);
-
-			jsRowset = jsonMakeRowsetArray(queryMap.getRows(), nMaxRows);
-
-			queryMap.close();
-			queryMap = null;
+			throw new FatalException(String.format("DbClient:jsonQuerySelect: JSON exception"),e);
 		}
-		else
-		{
-			jsRowset = jsonMakeRowsetArray(cursor, nMaxRows);
-		}
-
-		jsonReply.put("$tableName",stTableName);
-		jsonReply.put("$rowset", jsRowset);
-
-		cursor.close();
-		cursor = null;
-
 		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}
 
-	public Requester.ReplyCode jsonQuerySQL(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException, JSONException
+	public Requester.ReplyCode jsonQuerySQL(JSONObject jsonRequest,final JSONObject jsonReply) throws DbException
 	{
-		String stSQL = jsonRequest.getString("$sql");
-
-		String[] stArgs = null;
-
-		if(jsonRequest.has("$args"))
+		try
 		{
-			Log.d("DBC", "Args found in request...");
+			String stSQL = jsonRequest.getString("$sql");
 
-			JSONArray jsonArgsArray = jsonRequest.getJSONArray("$args");
+			String[] stArgs = null;
 
-			if(jsonArgsArray != null)
+			if(jsonRequest.has("$args"))
 			{
-				stArgs = new String[jsonArgsArray.length()];
+				Log.d("DBC", "Args found in request...");
 
-				for(int i = 0; i < jsonArgsArray.length(); ++i)
-					stArgs[i] = jsonArgsArray.getString(i);
-			}
-		}
+				JSONArray jsonArgsArray = jsonRequest.getJSONArray("$args");
 
-		Log.d("DBC", "Raw SQL: " + stSQL);
-
-		Cursor cursor = readableDB().rawQuery(stSQL, stArgs);
-
-		if(cursor.getCount() == 0)
-			return Requester.ReplyCode.WARNING_NOTFOUND;
-
-		cursor.moveToFirst();
-
-		int nMaxRows = 20;
-
-		if(jsonRequest.has("$maxrows"))
-			nMaxRows = jsonRequest.getInt("$maxrows");
-
-		JSONArray jsRowset = jsonMakeRowsetArray(cursor, nMaxRows);
-
-		jsonReply.put("$tableName", "$sql");
-		jsonReply.put("$rowset", jsRowset);
-
-		cursor.close();
-
-		return Requester.ReplyCode.SUCCESS_REQUEST;
-	}
-
-	public Requester.ReplyCode jsonUpdateByRowId(JSONObject jsonRequest, JSONObject jsonReply) throws DbException, JSONException
-	{
-		String stRowId = null, stColumn, stValue, stTableName = jsonRequest.getString("$tableName");
-
-		JSONArray jsRowset = jsonRequest.getJSONArray("$rowset");
-
-		ContentValues values = new ContentValues();
-
-		for(int i = 0; i < jsRowset.length(); ++i)
-		{
-			values.clear();
-
-			JSONObject jsRow = jsRowset.getJSONObject(i);
-
-			Iterator<String> iterator = jsRow.keys();
-
-			while(iterator.hasNext())
-			{
-				stColumn = iterator.next();
-				stValue = jsRow.getString(stColumn);
-
-				if(stColumn.equals("$rowId"))
+				if(jsonArgsArray != null)
 				{
-					stRowId = stValue;
-				}
-				else if(stValue != null && stValue != JSONObject.NULL)
-				{
-					values.put(stColumn, stValue);
+					stArgs = new String[jsonArgsArray.length()];
+
+					for(int i = 0; i < jsonArgsArray.length(); ++i)
+						stArgs[i] = jsonArgsArray.getString(i);
 				}
 			}
 
-			updateValuesAtRowId(stTableName, Long.parseLong(stRowId), values);
+			Log.d("DBC", "Raw SQL: " + stSQL);
+
+			Cursor cursor = readableDB().rawQuery(stSQL, stArgs);
+
+			if(cursor.getCount() == 0)
+				return Requester.ReplyCode.WARNING_NOTFOUND;
+
+			cursor.moveToFirst();
+
+			int nMaxRows = 20;
+
+			if(jsonRequest.has("$maxrows"))
+				nMaxRows = jsonRequest.getInt("$maxrows");
+
+			JSONArray jsRowset = jsonMakeRowsetArray(cursor, nMaxRows);
+
+			jsonReply.put("$tableName", "$sql");
+			jsonReply.put("$rowset", jsRowset);
+
+			cursor.close();
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException(String.format("DbClient:jsonQuerySQL: JSON exception"),e);
+		}
+		return Requester.ReplyCode.SUCCESS_REQUEST;
+	}
+
+	public Requester.ReplyCode jsonUpdateByRowId(JSONObject jsonRequest, JSONObject jsonReply) throws DbException
+	{
+		try
+		{
+			String stRowId = null, stColumn, stValue, stTableName = jsonRequest.getString("$tableName");
+
+			JSONArray jsRowset = jsonRequest.getJSONArray("$rowset");
+
+			ContentValues values = new ContentValues();
+
+			for(int i = 0; i < jsRowset.length(); ++i)
+			{
+				values.clear();
+
+				JSONObject jsRow = jsRowset.getJSONObject(i);
+
+				Iterator<String> iterator = jsRow.keys();
+
+				while(iterator.hasNext())
+				{
+					stColumn = iterator.next();
+					stValue = jsRow.getString(stColumn);
+
+					if(stColumn.equals("$rowId"))
+					{
+						stRowId = stValue;
+					}
+					else if(stValue != null && stValue != JSONObject.NULL)
+					{
+						values.put(stColumn, stValue);
+					}
+				}
+
+				updateValuesAtRowId(stTableName, Long.parseLong(stRowId), values);
+			}
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException(String.format("DbClient:jsonUpdateByRowId: JSON exception"),e);
 		}
 		return Requester.ReplyCode.SUCCESS_REQUEST;
 	}

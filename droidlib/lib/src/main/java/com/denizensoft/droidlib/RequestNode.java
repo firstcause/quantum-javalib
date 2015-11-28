@@ -1,8 +1,9 @@
 package com.denizensoft.droidlib;
 
 import android.os.Bundle;
-import org.json.JSONException;
+import com.denizensoft.jlib.FatalException;
 import org.json.JSONObject;
+
 
 /**
  * Created by sjm on 11/22/15.
@@ -15,14 +16,14 @@ public class RequestNode extends TargetNode
 	//
 	// These methods require override in instances or subclasses
 	//
-	public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException
+	public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
 	{
-		throw new HandlerException("RequestNode: error! Undefined invocation handler!");
+		throw new FatalException("RequestNode: error! Undefined invocation handler!");
 	}
 
 	public void updateRequestNode(String stTag, String stToken, Bundle bundle)
 	{
-		throw new RuntimeException(String.format("RequestNode: error! Undefined update handler!"));
+		throw new FatalException(String.format("RequestNode: error! Undefined update handler!"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -64,16 +65,9 @@ public class RequestNode extends TargetNode
 		commitReply(Requester.ReplyCode.SUCCESS_REQUEST,stMessage);
 	}
 
-	final public void startRequest(String stMethod)
+	final public void startRequest(String stMethod) throws FatalException
 	{
-		try
-		{
-			invokeMethod(stMethod, mRequester.pendingRequest(),mRequester.pendingReply());
-		}
-		catch(JSONException e)
-		{
-			throw new HandlerException("RequestNode: JSON exception during invoke!");
-		}
+		invokeMethod(stMethod, mRequester.pendingRequest(),mRequester.pendingReply());
 	}
 
 	public RequestNode(Object owner, String stClass)

@@ -1,7 +1,7 @@
 package com.denizensoft.jlib;
 
 /**
- * Created by sjm on 12/20/2014.
+ * Created by sjm on 11/28/15.
  */
 public class LibException extends RuntimeException
 {

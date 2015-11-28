@@ -15,7 +15,7 @@ public class Scope
 		node.addedToScope(this);
 	}
 
-	public Function findFunction(String stTag) throws LibException
+	public Function findFunction(String stTag) throws TypeErrorException
 	{
 		Node node = findNode(stTag);
 
@@ -25,7 +25,7 @@ public class Scope
 		return (Function)node;
 	}
 
-	public Node findNode(String stTag) throws LibException
+	public Node findNode(String stTag) throws NotFoundException
 	{
 		Node n1 = mNodes.get(stTag);
 
@@ -39,7 +39,7 @@ public class Scope
 		return n1;
 	}
 
-	public Variable findVariable(String stTag) throws LibException
+	public Variable findVariable(String stTag) throws TypeErrorException
 	{
 		Node node = findNode(stTag);
 
@@ -49,7 +49,7 @@ public class Scope
 		return (Variable)node;
 	}
 
-	public void setVariable(String stTag,String stValue) throws LibException
+	public void setVariable(String stTag,String stValue) throws TypeErrorException
 	{
 		try
 		{

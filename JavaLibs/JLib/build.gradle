@@ -3,7 +3,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.artifactory'
 
 group = 'com.denizensoft.jlib'
-version = '1.0.0'
+version = '1.0.0-SNAPSHOT'
 
 dependencies {
 	compile fileTree(include: ['*.jar'], dir: 'libs')
@@ -51,7 +51,7 @@ artifactory {
 	publish {
 
 		repository {
-			repoKey = 'libs-release-local'
+			repoKey = version.endsWith('-SNAPSHOT') ? 'libs-snapshot-local' : 'libs-release-local'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 		}
@@ -94,7 +94,9 @@ artifactory {
 
 	resolve {
 		repository {
-			repoKey = 'jcenter'
+			repoKey = 'libs-snapshot'
+			username = "${artifactory_user}"
+			password = "${artifactory_password}"
 			maven = true
 		}
 
@@ -106,12 +108,11 @@ artifactory {
 		}
 
 		repository {
-			repoKey = 'libs-release-local'
+			repoKey = 'jcenter'
 			username = "${artifactory_user}"
 			password = "${artifactory_password}"
 			maven = true
 		}
-
 	}
 
 	// Redefine basic properties of the build info object

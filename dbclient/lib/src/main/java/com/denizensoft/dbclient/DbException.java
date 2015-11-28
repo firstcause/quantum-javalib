@@ -1,11 +1,11 @@
 package com.denizensoft.dbclient;
 
-import com.denizensoft.jlib.LibException;
+import com.denizensoft.jlib.FatalException;
 
 /**
  * Created by sjm on 12/20/2014.
  */
-public class DbException extends LibException
+public class DbException extends FatalException
 {
 	public DbException()
 	{

@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+import com.denizensoft.droidlib.HandlerException;
 import com.denizensoft.droidlib.RequestNode;
 import com.denizensoft.droidlib.UpdateNotifier;
 import org.json.JSONException;
@@ -47,17 +48,26 @@ public class AppFragment extends Fragment implements
 		mAppInterface.requester().addRequestNode(new RequestNode(this,"appfragment"){
 
 			@Override
-			public void invokeMethod(String stMethod,JSONObject jsRequest, JSONObject jsReply) throws JSONException
+			public void invokeMethod(String stMethod,JSONObject jsRequest, JSONObject jsReply)
 			{
 				switch(stMethod.substring(1))
 				{
 					case "show-toast" :
 					{
-						String stMessage = jsRequest.getString("$message");
+						String stMessage = null;
+						try
+						{
+							stMessage = jsRequest.getString("$message");
 
-						Toast.makeText(mAppInterface.appContext(), stMessage, Toast.LENGTH_LONG).show();
+							Toast.makeText(mAppInterface.appContext(), stMessage, Toast.LENGTH_LONG).show();
 
-						replySuccessComplete(null);
+							replySuccessComplete(null);
+						}
+						catch(JSONException e)
+						{
+							throw new HandlerException(String.format("JSON exception during: %s",e.getMessage()));
+						}
+
 					}
 					break;
 

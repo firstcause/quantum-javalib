@@ -36,14 +36,16 @@ public class ScopeContext
 		return mScopeStack;
 	}
 
-	public void setVariable(String stTag,String stValue) throws LibException
+	public void setVariable(String stTag,String stValue) throws TypeErrorException
 	{
 		mScopeStack.peek().setVariable(stTag,stValue);
 	}
 
-	public String valueOf(String stTag) throws LibException
+	public String valueOf(String stTag) throws TypeErrorException
 	{
-		String stResult = mScopeStack.peek().findVariable(stTag).invoke(mScopeStack.peek(),null);
+		String stResult = null;
+
+		stResult = mScopeStack.peek().findVariable(stTag).invoke(mScopeStack.peek(),null);
 
 		return stResult;
 	}
