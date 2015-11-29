@@ -89,7 +89,7 @@ abstract public class DbClientFragment extends AppFragment
 						}
 					}
 
-					requester().commitReply(replyCode, null);
+					requester().replyCommit(replyCode, null);
 				}
 			}
 		});

@@ -12,6 +12,8 @@ public class RequestNode extends TargetNode
 {
 	private Requester mRequester = null;
 
+	private String mInvokeMethod = null;
+
 	///////////////////////////////////////////////////////////////////////////////////////////
 	//
 	// These methods require override in instances or subclasses
@@ -35,9 +37,14 @@ public class RequestNode extends TargetNode
 		mRequester = requester;
 	}
 
-	public void commitReply(Requester.ReplyCode replyCode, String stMessage)
+	public void replyCommit(Requester.ReplyCode replyCode, String stMessage)
 	{
-		mRequester.commitReply(replyCode,stMessage);
+		mRequester.replyCommit(replyCode,stMessage);
+	}
+
+	public String invokeMethod()
+	{
+		return mInvokeMethod;
 	}
 
 	public JSONObject reply()
@@ -55,18 +62,20 @@ public class RequestNode extends TargetNode
 		return mRequester.pendingRequest();
 	}
 
-	public void replyCriticalError(String stMessage)
+	public void replyCriticalError(String stReply)
 	{
-		commitReply(Requester.ReplyCode.CRITICAL_ERROR,stMessage);
+		replyCommit(Requester.ReplyCode.CRITICAL_ERROR,stReply);
 	}
 
-	public void replySuccessComplete(String stMessage)
+	public void replySuccessComplete(String stReply)
 	{
-		commitReply(Requester.ReplyCode.SUCCESS_REQUEST,stMessage);
+		replyCommit(Requester.ReplyCode.SUCCESS_REQUEST,stReply);
 	}
 
 	final public void startRequest(String stMethod) throws FatalException
 	{
+		mInvokeMethod = stMethod;
+
 		invokeMethod(stMethod, mRequester.pendingRequest(),mRequester.pendingReply());
 	}
 

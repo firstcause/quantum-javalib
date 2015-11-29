@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import com.denizensoft.jlib.FatalException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,21 +20,8 @@ import java.util.regex.Pattern;
 public class Requester extends Handler
 {
 	static final public int N_APP_MESSAGE			= 0xDEADBEEF;
-	static final public int N_MSG_COMMAND 			= ( N_APP_MESSAGE + 0 );
 	static final public int N_MSG_REQUEST 			= ( N_APP_MESSAGE + 1 );
-	static final public int N_MSG_NOTIFY 			= ( N_APP_MESSAGE + 2 );
-	static final public int N_MSG_TOKEN 			= ( N_APP_MESSAGE + 3 );
-
-	static final public int N_COMMAND = ( 1024 );
-	static final public int N_COMMAND_TRACK			= ( N_COMMAND + 1 );
-	static final public int N_COMMAND_DISMISS		= ( N_COMMAND + 2 );
-	static final public int N_COMMAND_QUIT			= ( N_COMMAND + 2 );
-
-	static final public int N_COMMAND_USER 			= ( N_COMMAND + 256 );
-
-	static final public int N_NOTIFY				= ( N_COMMAND + 1024 );
-
-	static final public int N_NOTIFY_USER			= (N_NOTIFY + 256 );
+	static final public int N_MSG_TOKEN 			= ( N_APP_MESSAGE + 2 );
 
 	static final public int N_RC_ERROR				= -1;
 	static final public int N_RC_OK					= 0;
@@ -51,7 +39,7 @@ public class Requester extends Handler
 	static public enum ReplyCode
 	{
 		CRITICAL_ERROR,
-		SUCCESS_PENDING,
+		COMMIT_PENDING,
 		SUCCESS_REQUEST,
 		WARNING_MESSAGE,
 		WARNING_NOTFOUND,
@@ -70,7 +58,7 @@ public class Requester extends Handler
 
 	private JSONObject mPendingRequest = null, mPendingReply = null;
 
-	protected Pattern mMatchSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
+	protected Pattern mMatchNodeSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
 
 	public void addRequestNode(RequestNode requestNode)
 	{
@@ -83,7 +71,7 @@ public class Requester extends Handler
 		mTokenNodeList.add(tokenNode);
 	}
 
-	public void removeOwnedNodes(Object owner)
+	public void dropOwnedNodes(Object owner)
 	{
 		Iterator<TokenNode> i1 = mTokenNodeList.iterator();
 
@@ -102,112 +90,9 @@ public class Requester extends Handler
 		}
 	}
 
-	public Pattern matchSpec()
+	public boolean isReplyPending()
 	{
-		return mMatchSpec;
-	}
-
-	public void setMatchSpec(Pattern pattern)
-	{
-		mMatchSpec = pattern;
-	}
-
-	public JSONObject pendingRequest()
-	{
-		return mPendingRequest;
-	}
-
-	public JSONObject pendingReply()
-	{
-		return mPendingReply;
-	}
-
-	public StateCode updateState(StateCode stateCode)
-	{
-		return mRequestState = stateCode;
-	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//
-	//
-	public boolean replyPending()
-	{
-		return( mRequestState == StateCode.REPLY_PENDING );
-	}
-
-	public void commitReply(ReplyCode replyCode, String stMessage) throws HandlerException
-	{
-		if(mRequestState != StateCode.REPLY_PENDING)
-			throw new HandlerException("Invalid state, cannot send reply!");
-
-		if(replyCode == ReplyCode.SUCCESS_PENDING)
-			replyCode = ReplyCode.SUCCESS_REQUEST;
-
-		try
-		{
-			synchronized(mPendingReply)
-			{
-				switch(replyCode)
-				{
-					case CRITICAL_ERROR:
-					{
-						mPendingReply.put("$rc",N_RC_ERROR);
-
-						if(stMessage == null)
-							stMessage = "Unknown error!";
-
-						if(!mPendingReply.has("$error"))
-							mPendingReply.put("$error",stMessage);
-					}
-					break;
-
-					case SUCCESS_REQUEST:
-					{
-						mPendingReply.put("$rc",N_RC_OK);
-
-						if(stMessage != null && !mPendingReply.has("$success"))
-							mPendingReply.put("$success",stMessage);
-					}
-					break;
-
-					case WARNING_MESSAGE:
-					{
-						mPendingReply.put("$rc",N_RC_WARNING);
-
-						if(stMessage != null  && !mPendingReply.has("$warning"))
-							mPendingReply.put("$warning",stMessage);
-					}
-					break;
-
-					case WARNING_NOTFOUND:
-					{
-						mPendingReply.put("$rc", N_RC_WARNING_NOTFOUND);
-
-						if(stMessage == null)
-							stMessage = "Operation caused a NOTFOUND warning!";
-
-						if(!mPendingReply.has("$warning"))
-							mPendingReply.put("$warning",stMessage);
-					}
-					break;
-
-					case USER_CANCELLED:
-					{
-						mPendingReply.put("$rc", N_RC_USER_CANCELLED);
-					}
-					break;
-
-				}
-
-				mRequestState = StateCode.REPLY_READY;
-				mPendingReply.notifyAll();
-				mPendingReply = null;
-			};
-		}
-		catch(JSONException e)
-		{
-			throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
-		}
+		return ( mRequestState == StateCode.REPLY_PENDING );
 	}
 
 	public String jsJsonRequest(String stJSON)
@@ -231,137 +116,129 @@ public class Requester extends Handler
 		return stReply;
 	}
 
-	@Override
-	public void handleMessage(Message msg)
+	public Pattern matchNodeSpec()
 	{
-		switch(msg.what)
-		{
-			case N_MSG_REQUEST:
-			{
-				// Remember, there is only one looper thread, it handles the request invocations,
-				// so there is no point trying to invoke multiple requests simultaneously, as that could
-				// cause a deadlock on the request mutex, and even if the mutex were moved to the RequestNode.
-				// Yet, it is still possible that any number of client threads may simultaneously queue
-				// requests, but on any given requester, only ONE RequestNode can be active at
-				// any given time anyways...
-				//
-				// Sorry...the facts of life...so suck it up!
-				//
-				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
-
-				try
-				{
-					JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
-
-					String
-							stNodeSpec = jsRequest.getString("$nodespec"),
-							stNodeTag, stMethod = null;
-
-					Matcher matcher = mMatchSpec.matcher(stNodeSpec);
-
-					if(!matcher.matches())
-						throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
-
-					stNodeTag = matcher.group(1);
-					stMethod = matcher.group(2);
-
-					if(!mTargetMap.containsKey(stNodeTag))
-					{
-						throw new HandlerException(String.format("Undefined action token: %s", stNodeTag));
-					}
-
-					mRequestNode = mTargetMap.get(stNodeTag);
-
-					mPendingRequest = jsRequest;
-					mPendingReply = (JSONObject)msg.obj;
-
-					// This here is how we release the current waiting thread
-					//
-					synchronized(mPendingReply)
-					{
-						// Don't monkey with this! As the request wait state can be set elsewhere!
-						// while the handler is in progress!
-						//
-						mRequestNode.startRequest(stMethod);
-
-						if(mRequestState == StateCode.REPLY_PENDING)
-							Log.d("Requester", String.format("%08X: Reply pending after invoke...",
-									Thread.currentThread().getId()));
-					}
-				}
-				catch(JSONException e)
-				{
-					throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
-				}
-			}
-			break;
-
-			case N_MSG_TOKEN:
-			{
-				String stToken = msg.getData().getString("$token");
-
-				if(stToken != null)
-				{
-					for(TokenNode node: mTokenNodeList)
-					{
-						Matcher matcher = node.tokenSpecification().matcher(stToken);
-
-						if(matcher.matches())
-							node.tokenHandler(matcher.group(1),msg.getData());
-					}
-				}
-			}
-			break;
-
-			default:
-			{
-				super.handleMessage(msg);
-			}
-			break;
-
-		}
+		return mMatchNodeSpec;
 	}
 
-	public void sendCommand(int nCommand,Bundle args)
-	{
-		Message msg = obtainMessage();
-
-		msg.what = N_MSG_COMMAND;
-		msg.arg1 = nCommand;
-
-		msg.setData(args);
-
-		sendMessage(msg);
-	}
-
-	public void sendNotify(int nNotify,Bundle args)
-	{
-		Message msg = obtainMessage();
-
-		msg.what = N_MSG_NOTIFY;
-		msg.arg1 = nNotify;
-
-		msg.setData(args);
-
-		sendMessage(msg);
-	}
-
-	public JSONObject nodeMethodRequest(String stNodeSpec, String[] args) throws JSONException
+	public JSONObject nodeMethodRequest(String stNodeSpec, String[] args)
 	{
 		JSONObject jsRequest = new JSONObject();
 
-		jsRequest.put("$nodespec",stNodeSpec);
-
-		if(args != null)
+		try
 		{
-			JSONArray jsArgs = new JSONArray();
+			jsRequest.put("$nodespec",stNodeSpec);
 
-			for(String s1 : args)
-				jsArgs.put(s1);
+			if(args != null)
+			{
+				JSONArray jsArgs = new JSONArray();
 
-			jsRequest.put("$args",jsArgs);
+				for(String s1 : args)
+					jsArgs.put(s1);
+
+				jsRequest.put("$args",jsArgs);
+			}
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException("JSON exception during node method request...");
 		}
 		return sendRequest(jsRequest.toString());
+	}
+
+	public JSONObject pendingRequest()
+	{
+		return mPendingRequest;
+	}
+
+	public JSONObject pendingReply()
+	{
+		return mPendingReply;
+	}
+
+	public StateCode requesterState()
+	{
+		return mRequestState;
+	}
+
+	public RequestNode requestNode()
+	{
+		return mRequestNode;
+	}
+
+	public void replyCommit(ReplyCode replyCode, String stReply) throws HandlerException
+	{
+		if(mRequestState != StateCode.REPLY_PENDING)
+			throw new HandlerException("Invalid state, cannot send reply!");
+
+		if(replyCode == ReplyCode.COMMIT_PENDING)
+			replyCode = ReplyCode.SUCCESS_REQUEST;
+
+		try
+		{
+			synchronized(mPendingReply)
+			{
+				switch(replyCode)
+				{
+					case CRITICAL_ERROR:
+					{
+						mPendingReply.put("$rc",N_RC_ERROR);
+
+						if(stReply == null)
+							stReply = "Unknown error!";
+					}
+					break;
+
+					case SUCCESS_REQUEST:
+					{
+						mPendingReply.put("$rc",N_RC_OK);
+
+						if(stReply == null)
+							stReply = "Unspecified SUCCESS!";
+					}
+					break;
+
+					case WARNING_MESSAGE:
+					{
+						mPendingReply.put("$rc",N_RC_WARNING);
+
+						if(stReply == null)
+							stReply = "Unspecified WARNING!";
+					}
+					break;
+
+					case WARNING_NOTFOUND:
+					{
+						mPendingReply.put("$rc", N_RC_WARNING_NOTFOUND);
+
+						if(stReply == null)
+							stReply = "Unknown NOTFOUND warning!";
+					}
+					break;
+
+					case USER_CANCELLED:
+					{
+						mPendingReply.put("$rc", N_RC_USER_CANCELLED);
+
+						if(stReply == null)
+							stReply = "Unknown,was cancelled by user!";
+					}
+					break;
+
+				}
+
+				if(!mPendingReply.has("$reply"))
+					mPendingReply.put("$reply",stReply);
+
+				mRequestState = StateCode.REPLY_READY;
+				mPendingReply.notifyAll();
+				mPendingReply = null;
+			};
+		}
+		catch(JSONException e)
+		{
+			throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+		}
 	}
 
 	public JSONObject sendRequest(JSONObject jsRequest)
@@ -395,9 +272,9 @@ public class Requester extends Handler
 
 					String
 							stNodeSpec = jsRequest.getString("$nodespec"),
-							stNodeTag, stAction = null;
+							stNodeTag, stMethod = null;
 
-					Matcher matcher = mMatchSpec.matcher(stNodeSpec);
+					Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
 
 					if(!matcher.matches())
 					{
@@ -406,7 +283,7 @@ public class Requester extends Handler
 					}
 
 					stNodeTag = matcher.group(1);
-					stAction = matcher.group(2);
+					stMethod = matcher.group(2);
 
 					if(!mTargetMap.containsKey(stNodeTag))
 						throw new HandlerException(String.format("%s Undefined action token: %s",stTag,stNodeTag));
@@ -417,7 +294,7 @@ public class Requester extends Handler
 
 					mPendingReply = jsReply;
 
-					mRequestNode.startRequest(stAction);
+					mRequestNode.startRequest(stMethod);
 
 					if(mRequestState == StateCode.REPLY_PENDING)
 						Log.d(stTag, "Warn: Reply was pending for current thread...");
@@ -492,6 +369,11 @@ public class Requester extends Handler
 		sendMessage(msg);
 	}
 
+	public void setMatchNodeSpec(Pattern pattern)
+	{
+		mMatchNodeSpec = pattern;
+	}
+
 	public void updateRequestNode(ReplyCode replyCode, String stTag, String stToken, Bundle bundle)
 	{
 		if(mRequestState != StateCode.REPLY_PENDING)
@@ -499,8 +381,109 @@ public class Requester extends Handler
 
 		mRequestNode.updateRequestNode(stTag,stToken,bundle);
 
-		if(replyCode != ReplyCode.SUCCESS_PENDING)
-			commitReply(replyCode,null);
+		if(replyCode != ReplyCode.COMMIT_PENDING)
+			replyCommit(replyCode,null);
+	}
+
+	public StateCode updateState(StateCode stateCode)
+	{
+		return mRequestState = stateCode;
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//
+	@Override
+	public void handleMessage(Message msg)
+	{
+		switch(msg.what)
+		{
+			case N_MSG_REQUEST:
+			{
+				// Remember, there is only one looper thread, it handles the request invocations,
+				// so there is no point trying to invoke multiple requests simultaneously, as that could
+				// cause a deadlock on the request mutex, and even if the mutex were moved to the RequestNode.
+				// Yet, it is still possible that any number of client threads may simultaneously queue
+				// requests, but on any given requester, only ONE RequestNode can be active at
+				// any given time anyways...
+				//
+				// Sorry...the facts of life...so suck it up!
+				//
+				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
+
+				try
+				{
+					JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
+
+					String
+							stNodeSpec = jsRequest.getString("$nodespec"),
+							stNodeTag, stMethod = null;
+
+					Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
+
+					if(!matcher.matches())
+						throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
+
+					stNodeTag = matcher.group(1);
+					stMethod = matcher.group(2);
+
+					if(!mTargetMap.containsKey(stNodeTag))
+					{
+						throw new HandlerException(String.format("Undefined action token: %s", stNodeTag));
+					}
+
+					mRequestNode = mTargetMap.get(stNodeTag);
+
+					mPendingRequest = jsRequest;
+					mPendingReply = (JSONObject)msg.obj;
+
+					// This here is how we release the current waiting thread
+					//
+					synchronized(mPendingReply)
+					{
+						// Don't monkey with this! As the request wait state can be set elsewhere!
+						// while the handler is in progress!
+						//
+						mRequestNode.startRequest(stMethod);
+
+						if(mRequestState == StateCode.REPLY_PENDING)
+						{
+							Log.d("Requester", String.format("%08X: Reply pending after invoke...",
+									Thread.currentThread().getId()));
+						}
+					}
+				}
+				catch(JSONException e)
+				{
+					throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+				}
+			}
+			break;
+
+			case N_MSG_TOKEN:
+			{
+				String stToken = msg.getData().getString("$token");
+
+				if(stToken != null)
+				{
+					for(TokenNode node: mTokenNodeList)
+					{
+						Matcher matcher = node.tokenSpecification().matcher(stToken);
+
+						if(matcher.matches())
+							node.tokenHandler(matcher.group(1),msg.getData());
+					}
+				}
+			}
+			break;
+
+			default:
+			{
+				super.handleMessage(msg);
+			}
+			break;
+
+		}
 	}
 
 	public Requester(Looper looper)
