@@ -14,10 +14,7 @@ import org.json.JSONObject;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +35,7 @@ public class Requester extends Handler
 	static public enum StateCode
 	{
 		REQUESTER_IDLE,
+		REQUEST_PENDING,
 		REPLY_PENDING,
 		REPLY_READY
 	}
@@ -53,6 +51,8 @@ public class Requester extends Handler
 	}
 
 	private StateCode mRequestState = StateCode.REQUESTER_IDLE;
+
+	private Stack<ApiNode> mApiNodeStack = new Stack<>();
 
 	private ApiNode mApiNode = null;
 
@@ -253,6 +253,8 @@ public class Requester extends Handler
 				{
 					case CRITICAL_ERROR:
 					{
+						Log.d("Requester","Committing reply with ERROR");
+
 						mPendingReply.put("$rc",N_RC_ERROR);
 
 						if(stReply == null)
@@ -262,6 +264,8 @@ public class Requester extends Handler
 
 					case SUCCESS_REQUEST:
 					{
+						Log.d("Requester","Committing reply with SUCCESS");
+
 						mPendingReply.put("$rc",N_RC_OK);
 
 						if(stReply == null)
@@ -271,6 +275,8 @@ public class Requester extends Handler
 
 					case WARNING_MESSAGE:
 					{
+						Log.d("Requester","Committing reply with WARNING");
+
 						mPendingReply.put("$rc",N_RC_WARNING);
 
 						if(stReply == null)
@@ -280,6 +286,8 @@ public class Requester extends Handler
 
 					case WARNING_NOTFOUND:
 					{
+						Log.d("Requester","Committing reply with NOTFOUND");
+
 						mPendingReply.put("$rc", N_RC_WARNING_NOTFOUND);
 
 						if(stReply == null)
@@ -289,6 +297,8 @@ public class Requester extends Handler
 
 					case USER_CANCELLED:
 					{
+						Log.d("Requester","Committing reply with USERCANCEL");
+
 						mPendingReply.put("$rc", N_RC_USER_CANCELLED);
 
 						if(stReply == null)
@@ -301,9 +311,12 @@ public class Requester extends Handler
 				if(!mPendingReply.has("$reply"))
 					mPendingReply.put("$reply",stReply);
 
-				mRequestState = StateCode.REPLY_READY;
-				mPendingReply.notifyAll();
+				JSONObject obj = mPendingReply;
+
+				mRequestState = StateCode.REQUESTER_IDLE;
+				mPendingRequest = null;
 				mPendingReply = null;
+				obj.notify();
 			};
 		}
 		catch(JSONException e)
@@ -325,9 +338,9 @@ public class Requester extends Handler
 
 		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
 		{
-			if(mRequestState == StateCode.REPLY_PENDING)
+			if(mRequestState != StateCode.REQUESTER_IDLE)
 			{
-				throw new HandlerException(String.format("%s: Possible deadlock!? A reply is pending!", stTag ));
+				throw new HandlerException(String.format("%s: Possible deadlock!? A request is pending!", stTag ));
 			}
 
 			// Another thread may also want to send a request...
@@ -335,6 +348,8 @@ public class Requester extends Handler
 			//
 			synchronized(mRequestMutex)
 			{
+				// Its the looper thread so we skip directly to REPLY_PENDING...
+				//
 				mRequestState = StateCode.REPLY_PENDING;
 
 				try
@@ -368,7 +383,7 @@ public class Requester extends Handler
 					mApiNode.startRequest(stMethod);
 
 					if(mRequestState == StateCode.REPLY_PENDING)
-						Log.d(stTag, "Warn: Reply was pending for current thread...");
+						Log.d(stTag, "Warn: Reply left pending for current thread...");
 
 				}
 				catch(JSONException e)
@@ -392,28 +407,45 @@ public class Requester extends Handler
 		//
 		synchronized(mRequestMutex)
 		{
-			if(mRequestState == StateCode.REPLY_PENDING)
-				throw new HandlerException(String.format("%s: Invalid locked state, a reply is pending?",stTag));
+			if(mRequestState != StateCode.REQUESTER_IDLE)
+				throw new HandlerException(String.format("%s: Invalid locked state, is a reply pending?",stTag));
 
-			mRequestState = StateCode.REPLY_PENDING;
+			mRequestState = StateCode.REQUEST_PENDING;
 
-			synchronized(jsReply)
+			synchronized(msg)
 			{
 				sendMessage(msg);
 
-				Log.d("Requester: " + Thread.currentThread().getId(), "Request posted, starting wait....");
+				Log.d("Requester: " + Thread.currentThread().getId(), "Request queued, starting wait....");
 
-				while(mRequestState == StateCode.REPLY_PENDING)
+				while(mRequestState == StateCode.REQUEST_PENDING)
 				{
 					try
 					{
-						jsReply.wait();
-
-						Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait completed....");
+						msg.wait();
 					}
 					catch(InterruptedException e)
 					{
-						Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait interrupted, restarting....");
+						Log.d("Requester: "+Thread.currentThread().getId(),"Message wait interrupted, restarting....");
+					}
+				}
+
+				synchronized(jsReply)
+				{
+					Log.d("Requester: " + Thread.currentThread().getId(), "Reply pending, starting wait....");
+
+					while(mRequestState == StateCode.REPLY_PENDING)
+					{
+						try
+						{
+							jsReply.wait();
+
+							Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait completed....");
+						}
+						catch(InterruptedException e)
+						{
+							Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait interrupted, restarting....");
+						}
 					}
 				}
 			}
@@ -482,36 +514,40 @@ public class Requester extends Handler
 				//
 				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
 
-				try
+				synchronized(msg)
 				{
-					JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
-
-					String
-							stNodeSpec = jsRequest.getString("$nodespec"),
-							stNodeTag, stMethod = null;
-
-					Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
-
-					if(!matcher.matches())
-						throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
-
-					stNodeTag = matcher.group(1);
-					stMethod = matcher.group(2);
-
-					if(!mApiMap.containsKey(stNodeTag))
-					{
-						throw new HandlerException(String.format("Undefined action token: %s", stNodeTag));
-					}
-
-					mApiNode = mApiMap.get(stNodeTag);
-
-					mPendingRequest = jsRequest;
-					mPendingReply = (JSONObject)msg.obj;
-
-					// This here is how we release the current waiting thread
+					// Latch the next wait state...
 					//
-					synchronized(mPendingReply)
+					mRequestState = StateCode.REPLY_PENDING;
+
+					msg.notify();
+
+					try
 					{
+						JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
+
+						String
+								stNodeSpec = jsRequest.getString("$nodespec"),
+								stNodeTag, stMethod = null;
+
+						Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
+
+						if(!matcher.matches())
+							throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
+
+						stNodeTag = matcher.group(1);
+						stMethod = matcher.group(2);
+
+						if(!mApiMap.containsKey(stNodeTag))
+						{
+							throw new HandlerException(String.format("Undefined action token: %s", stNodeTag));
+						}
+
+						mApiNode = mApiMap.get(stNodeTag);
+
+						mPendingRequest = jsRequest;
+						mPendingReply = (JSONObject)msg.obj;
+
 						// Don't monkey with this! As the request wait state can be set elsewhere!
 						// while the handler is in progress!
 						//
@@ -523,10 +559,10 @@ public class Requester extends Handler
 									Thread.currentThread().getId()));
 						}
 					}
-				}
-				catch(JSONException e)
-				{
-					throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+					catch(JSONException e)
+					{
+						throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+					}
 				}
 			}
 			break;
