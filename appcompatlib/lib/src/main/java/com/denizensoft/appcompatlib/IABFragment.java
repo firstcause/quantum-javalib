@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import com.denizensoft.dbclient.DbException;
-import com.denizensoft.droidlib.Requester;
 import com.denizensoft.droidlib.ApiNode;
 import com.denizensoft.droidlib.WorkItem;
 import com.denizensoft.iablib.IabHelper;
@@ -278,7 +277,7 @@ public class IABFragment extends WebAppFragment implements
 
 								asyncRequester.execute();
 
-								replyCommit(Requester.ReplyCode.SUCCESS_REQUEST,null);
+								replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST,null);
 							}
 							catch(LibException e)
 							{
@@ -300,9 +299,9 @@ public class IABFragment extends WebAppFragment implements
 							{
 								Log.d("IAB Inventory", "com.denizensoft.iablib.Inventory already present, refresh not requested...");
 
-								requester().pendingReply().put("$iabrc", 0);
+								reply().put("$iabrc", 0);
 
-								replyCommit(Requester.ReplyCode.SUCCESS_REQUEST, null);
+								replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST, null);
 							}
 						}
 						else if(stMethod.equals("iab-inventory-status"))
@@ -310,7 +309,7 @@ public class IABFragment extends WebAppFragment implements
 							jsReply.put("$status", ( mInventory != null ? "ready" : "notready"));
 							jsReply.put("$timestamp", ( mInventory != null ? stInventoryStamp : "(none)"));
 
-							requester().replyCommit(Requester.ReplyCode.SUCCESS_REQUEST, null);
+							replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST, null);
 						}
 						else if(stMethod.equals("iab-consume-async"))
 						{
@@ -320,13 +319,13 @@ public class IABFragment extends WebAppFragment implements
 							{
 								Log.e("IAB","Can't do consume, the inventory is empty!");
 
-								replyCommit(Requester.ReplyCode.CRITICAL_ERROR,"Can't do consume, the inventory is empty!");
+								replyCommit(ApiNode.ReplyCode.CRITICAL_ERROR,"Can't do consume, the inventory is empty!");
 							}
 							else
 							{
 								if(!mInventory.hasPurchase(s1))
 								{
-									requester().replyCommit(Requester.ReplyCode.WARNING_NOTFOUND,
+									replyCommit(ApiNode.ReplyCode.WARNING_NOTFOUND,
 											String.format(Locale.US,"Item not in inventory: %s",s1));
 								}
 								else
@@ -342,7 +341,7 @@ public class IABFragment extends WebAppFragment implements
 						{
 							if(mInventory == null)
 							{
-								requester().replyCommit(Requester.ReplyCode.WARNING_NOTFOUND,"No inventory to cache yet!");
+								replyCommit(ApiNode.ReplyCode.WARNING_NOTFOUND,"No inventory to cache yet!");
 							}
 							else
 							{
@@ -360,7 +359,7 @@ public class IABFragment extends WebAppFragment implements
 									mAppInterface.appFatalErrorHook("IAB","Couldn't update the IAB_INVENTORY_STATUS!");
 								}
 
-								replyCommit(Requester.ReplyCode.SUCCESS_REQUEST,null);
+								replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST,null);
 							}
 						}
 						else if(stMethod.equals("iab-purchase-subscription"))
@@ -370,7 +369,7 @@ public class IABFragment extends WebAppFragment implements
 
 							if(mInventory != null && mInventory.hasPurchase(s1))
 							{
-								requester().replyCommit(Requester.ReplyCode.SUCCESS_REQUEST, null);
+								replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST, null);
 							}
 							else
 							{
@@ -384,7 +383,7 @@ public class IABFragment extends WebAppFragment implements
 
 							if(mInventory != null && mInventory.hasPurchase(s1))
 							{
-								requester().replyCommit(Requester.ReplyCode.SUCCESS_REQUEST, null);
+								replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST, null);
 							}
 							else
 							{
@@ -397,18 +396,18 @@ public class IABFragment extends WebAppFragment implements
 
 							if(mInventory == null)
 							{
-								requester().replyCommit(Requester.ReplyCode.WARNING_MESSAGE,
+								replyCommit(ApiNode.ReplyCode.WARNING_MESSAGE,
 										"Can't check for purchase, inventory not ready!");
 							}
 							else
 							{
 								if(mInventory.hasPurchase(s1))
 								{
-									requester().replyCommit(Requester.ReplyCode.SUCCESS_REQUEST, null);
+									replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST, null);
 								}
 								else
 								{
-									requester().replyCommit(Requester.ReplyCode.WARNING_NOTFOUND, null);
+									replyCommit(ApiNode.ReplyCode.WARNING_NOTFOUND, null);
 								}
 							}
 						}
@@ -530,13 +529,13 @@ public class IABFragment extends WebAppFragment implements
 
 	protected void updateJsonRequest(IabResult result)
 	{
-		if(mAppInterface.requester().pendingRequest() != null)
+		if(mAppInterface.requester().apiNode().reply() != null)
 		{
 			try
 			{
 				Log.d("IAB Request", "JSON request present, sending reply...");
-				mAppInterface.requester().pendingReply().put("$iabrc", result.getResponse());
-				mAppInterface.requester().replyCommit(Requester.ReplyCode.SUCCESS_REQUEST,null);
+				mAppInterface.requester().apiNode().reply().put("$iabrc", result.getResponse());
+				mAppInterface.requester().apiNode().replyCommit(ApiNode.ReplyCode.SUCCESS_REQUEST,null);
 			}
 			catch(JSONException e)
 			{

@@ -4,7 +4,6 @@ import android.os.Bundle;
 import android.view.View;
 import com.denizensoft.dbclient.DbClient;
 import com.denizensoft.droidlib.ApiNode;
-import com.denizensoft.droidlib.Requester;
 import com.denizensoft.jlib.FatalException;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,7 +34,7 @@ abstract public class DbClientFragment extends AppFragment
 			@Override
 			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
 			{
-				Requester.ReplyCode replyCode = Requester.ReplyCode.SUCCESS_REQUEST;
+				ApiNode.ReplyCode replyCode = ApiNode.ReplyCode.SUCCESS_REQUEST;
 
 				if(mDbClient != null)
 				{
@@ -89,7 +88,7 @@ abstract public class DbClientFragment extends AppFragment
 						}
 					}
 
-					requester().replyCommit(replyCode, null);
+					replyCommit(replyCode, null);
 				}
 			}
 		});

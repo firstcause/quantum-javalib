@@ -24,12 +24,6 @@ public class Requester extends Handler
 	static final public int N_MSG_REQUEST 			= ( N_APP_MESSAGE + 1 );
 	static final public int N_MSG_TOKEN 			= ( N_APP_MESSAGE + 2 );
 
-	static final public int N_RC_ERROR				= -1;
-	static final public int N_RC_OK					= 0;
-	static final public int N_RC_WARNING			= 1;
-	static final public int N_RC_WARNING_NOTFOUND	= 2;
-	static final public int N_RC_USER_CANCELLED		= 3;
-
 	private final Object mOwner;
 
 	static public enum StateCode
@@ -40,18 +34,6 @@ public class Requester extends Handler
 		REPLY_READY
 	}
 
-	static public enum ReplyCode
-	{
-		CRITICAL_ERROR,
-		COMMIT_PENDING,
-		SUCCESS_REQUEST,
-		WARNING_MESSAGE,
-		WARNING_NOTFOUND,
-		USER_CANCELLED
-	}
-
-	private StateCode mRequestState = StateCode.REQUESTER_IDLE;
-
 	private Stack<ApiNode> mApiNodeStack = new Stack<>();
 
 	private ApiNode mApiNode = null;
@@ -59,10 +41,6 @@ public class Requester extends Handler
 	private HashMap<String,ApiNode> mApiMap = new HashMap<String,ApiNode>();
 
 	private ArrayList<TokenNode> mTokenNodeList = new ArrayList<>();
-
-	private final Object mRequestMutex = new Object();
-
-	private JSONObject mPendingRequest = null, mPendingReply = null;
 
 	protected Pattern mMatchNodeSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
 
@@ -118,11 +96,6 @@ public class Requester extends Handler
 			return mApiMap.get(stClass);
 
 		throw new NotFoundException(String.format("Requester: api not found: %s",stClass));
-	}
-
-	public boolean isReplyPending()
-	{
-		return ( mRequestState == StateCode.REPLY_PENDING );
 	}
 
 	public String jsJsonRequest(String stJSON)
@@ -217,112 +190,9 @@ public class Requester extends Handler
 		return sendRequest(jsRequest.toString());
 	}
 
-	public JSONObject pendingRequest()
+	public ApiNode apiNode()
 	{
-		return mPendingRequest;
-	}
-
-	public JSONObject pendingReply()
-	{
-		return mPendingReply;
-	}
-
-	public StateCode requesterState()
-	{
-		return mRequestState;
-	}
-
-	public ApiNode requestNode()
-	{
-		return mApiNode;
-	}
-
-	public void replyCommit(ReplyCode replyCode, String stReply) throws HandlerException
-	{
-		if(mRequestState != StateCode.REPLY_PENDING)
-			throw new HandlerException("Invalid state, cannot send reply!");
-
-		if(replyCode == ReplyCode.COMMIT_PENDING)
-			replyCode = ReplyCode.SUCCESS_REQUEST;
-
-		try
-		{
-			synchronized(mPendingReply)
-			{
-				switch(replyCode)
-				{
-					case CRITICAL_ERROR:
-					{
-						Log.d("Requester","Committing reply with ERROR");
-
-						mPendingReply.put("$rc",N_RC_ERROR);
-
-						if(stReply == null)
-							stReply = "Unknown error!";
-					}
-					break;
-
-					case SUCCESS_REQUEST:
-					{
-						Log.d("Requester","Committing reply with SUCCESS");
-
-						mPendingReply.put("$rc",N_RC_OK);
-
-						if(stReply == null)
-							stReply = "Unspecified SUCCESS!";
-					}
-					break;
-
-					case WARNING_MESSAGE:
-					{
-						Log.d("Requester","Committing reply with WARNING");
-
-						mPendingReply.put("$rc",N_RC_WARNING);
-
-						if(stReply == null)
-							stReply = "Unspecified WARNING!";
-					}
-					break;
-
-					case WARNING_NOTFOUND:
-					{
-						Log.d("Requester","Committing reply with NOTFOUND");
-
-						mPendingReply.put("$rc", N_RC_WARNING_NOTFOUND);
-
-						if(stReply == null)
-							stReply = "Unknown NOTFOUND warning!";
-					}
-					break;
-
-					case USER_CANCELLED:
-					{
-						Log.d("Requester","Committing reply with USERCANCEL");
-
-						mPendingReply.put("$rc", N_RC_USER_CANCELLED);
-
-						if(stReply == null)
-							stReply = "Unknown,was cancelled by user!";
-					}
-					break;
-
-				}
-
-				if(!mPendingReply.has("$reply"))
-					mPendingReply.put("$reply",stReply);
-
-				JSONObject obj = mPendingReply;
-
-				mRequestState = StateCode.REQUESTER_IDLE;
-				mPendingRequest = null;
-				mPendingReply = null;
-				obj.notify();
-			};
-		}
-		catch(JSONException e)
-		{
-			throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
-		}
+		return mApiNodeStack.peek();
 	}
 
 	public JSONObject sendRequest(JSONObject jsRequest)
@@ -338,60 +208,38 @@ public class Requester extends Handler
 
 		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
 		{
-			if(mRequestState != StateCode.REQUESTER_IDLE)
+			try
 			{
-				throw new HandlerException(String.format("%s: Possible deadlock!? A request is pending!", stTag ));
+				JSONObject jsRequest = new JSONObject(stJSON);
+
+				String
+						stNodeSpec = jsRequest.getString("$nodespec"),
+						stNodeTag, stMethod = null;
+
+				Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
+
+				if(!matcher.matches())
+				{
+					throw new HandlerException(String.format("%s: Malformed node spec not matched: %s",
+							stTag, stNodeSpec));
+				}
+
+				stNodeTag = matcher.group(1);
+				stMethod = matcher.group(2);
+
+				if(!mApiMap.containsKey(stNodeTag))
+					throw new HandlerException(String.format("%s Undefined action token: %s",stTag,stNodeTag));
+
+				mApiNode = mApiMap.get(stNodeTag);
+
+				synchronized(mApiNode)
+				{
+					mApiNode.startRequest(stMethod,jsRequest,jsReply);
+				}
 			}
-
-			// Another thread may also want to send a request...
-			// so taking turns is Strictly Enforced!!
-			//
-			synchronized(mRequestMutex)
+			catch(JSONException e)
 			{
-				// Its the looper thread so we skip directly to REPLY_PENDING...
-				//
-				mRequestState = StateCode.REPLY_PENDING;
-
-				try
-				{
-					JSONObject jsRequest = new JSONObject(stJSON);
-
-					String
-							stNodeSpec = jsRequest.getString("$nodespec"),
-							stNodeTag, stMethod = null;
-
-					Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
-
-					if(!matcher.matches())
-					{
-						throw new HandlerException(String.format("%s: Malformed node spec not matched: %s",
-								stTag, stNodeSpec));
-					}
-
-					stNodeTag = matcher.group(1);
-					stMethod = matcher.group(2);
-
-					if(!mApiMap.containsKey(stNodeTag))
-						throw new HandlerException(String.format("%s Undefined action token: %s",stTag,stNodeTag));
-
-					mApiNode = mApiMap.get(stNodeTag);
-
-					mPendingRequest = jsRequest;
-
-					mPendingReply = jsReply;
-
-					mApiNode.startRequest(stMethod);
-
-					if(mRequestState == StateCode.REPLY_PENDING)
-						Log.d(stTag, "Warn: Reply left pending for current thread...");
-
-				}
-				catch(JSONException e)
-				{
-					throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
-				}
-
-				mRequestState = StateCode.REQUESTER_IDLE;
+				throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
 			}
 			return jsReply;
 		}
@@ -403,54 +251,48 @@ public class Requester extends Handler
 		msg.getData().putString("$request",stJSON);
 		msg.obj = jsReply;
 
-		// Only one requesting thread can lock this at a given time...
-		//
-		synchronized(mRequestMutex)
+		synchronized(msg)
 		{
-			if(mRequestState != StateCode.REQUESTER_IDLE)
-				throw new HandlerException(String.format("%s: Invalid locked state, is a reply pending?",stTag));
+			boolean bDequeued = false, bReplyReady = false;
 
-			mRequestState = StateCode.REQUEST_PENDING;
+			sendMessage(msg);
 
-			synchronized(msg)
+			Log.d("Requester: " + Thread.currentThread().getId(), "Request queued, starting wait....");
+
+			while(!bDequeued)
 			{
-				sendMessage(msg);
-
-				Log.d("Requester: " + Thread.currentThread().getId(), "Request queued, starting wait....");
-
-				while(mRequestState == StateCode.REQUEST_PENDING)
+				try
 				{
-					try
+					msg.wait();
+
+					bDequeued = true;
+
+					synchronized(jsReply)
 					{
-						msg.wait();
-					}
-					catch(InterruptedException e)
-					{
-						Log.d("Requester: "+Thread.currentThread().getId(),"Message wait interrupted, restarting....");
+						Log.d("Requester: " + Thread.currentThread().getId(), "Reply pending, starting wait....");
+
+						while(!bReplyReady)
+						{
+							try
+							{
+								jsReply.wait();
+
+								bReplyReady = true;
+
+								Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait completed....");
+							}
+							catch(InterruptedException e)
+							{
+								Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait interrupted, restarting....");
+							}
+						}
 					}
 				}
-
-				synchronized(jsReply)
+				catch(InterruptedException e)
 				{
-					Log.d("Requester: " + Thread.currentThread().getId(), "Reply pending, starting wait....");
-
-					while(mRequestState == StateCode.REPLY_PENDING)
-					{
-						try
-						{
-							jsReply.wait();
-
-							Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait completed....");
-						}
-						catch(InterruptedException e)
-						{
-							Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait interrupted, restarting....");
-						}
-					}
+					Log.d("Requester: "+Thread.currentThread().getId(),"Message wait interrupted, restarting....");
 				}
 			}
-
-			mRequestState = StateCode.REQUESTER_IDLE;
 		}
 		return jsReply;
 	}
@@ -477,22 +319,6 @@ public class Requester extends Handler
 		mMatchNodeSpec = pattern;
 	}
 
-	public void updateRequestNode(ReplyCode replyCode, String stTag, String stToken, Bundle bundle)
-	{
-		if(mRequestState != StateCode.REPLY_PENDING)
-			throw new HandlerException("Requester: invalid state, no request is pending!");
-
-		mApiNode.updateRequestNode(stTag,stToken,bundle);
-
-		if(replyCode != ReplyCode.COMMIT_PENDING)
-			replyCommit(replyCode,null);
-	}
-
-	public StateCode updateState(StateCode stateCode)
-	{
-		return mRequestState = stateCode;
-	}
-
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//
 	//
@@ -504,22 +330,12 @@ public class Requester extends Handler
 			case N_MSG_REQUEST:
 			{
 				// Remember, there is only one looper thread, it handles the request invocations,
-				// so there is no point trying to invoke multiple requests simultaneously, as that could
-				// cause a deadlock on the request mutex, and even if the mutex were moved to the ApiNode.
-				// Yet, it is still possible that any number of client threads may simultaneously queue
-				// requests, but on any given requester, only ONE ApiNode can be active at
-				// any given time anyways...
-				//
-				// Sorry...the facts of life...so suck it up!
+				// it is not possible for two threads to be here...
 				//
 				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
 
 				synchronized(msg)
 				{
-					// Latch the next wait state...
-					//
-					mRequestState = StateCode.REPLY_PENDING;
-
 					msg.notify();
 
 					try
@@ -545,19 +361,7 @@ public class Requester extends Handler
 
 						mApiNode = mApiMap.get(stNodeTag);
 
-						mPendingRequest = jsRequest;
-						mPendingReply = (JSONObject)msg.obj;
-
-						// Don't monkey with this! As the request wait state can be set elsewhere!
-						// while the handler is in progress!
-						//
-						mApiNode.startRequest(stMethod);
-
-						if(mRequestState == StateCode.REPLY_PENDING)
-						{
-							Log.d("Requester", String.format("%08X: Reply pending after invoke...",
-									Thread.currentThread().getId()));
-						}
+						mApiNode.startRequest(stMethod,jsRequest,(JSONObject) msg.obj);
 					}
 					catch(JSONException e)
 					{

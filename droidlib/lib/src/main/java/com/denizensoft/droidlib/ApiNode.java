@@ -2,7 +2,9 @@ package com.denizensoft.droidlib;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import com.denizensoft.jlib.FatalException;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 
@@ -11,9 +13,27 @@ import org.json.JSONObject;
  */
 public class ApiNode extends TargetNode implements ResultListener
 {
+	static public enum ReplyCode
+	{
+		CRITICAL_ERROR,
+		COMMIT_PENDING,
+		SUCCESS_REQUEST,
+		WARNING_MESSAGE,
+		WARNING_NOTFOUND,
+		USER_CANCELLED
+	}
+
+	static final public int N_RC_ERROR				= -1;
+	static final public int N_RC_OK					= 0;
+	static final public int N_RC_WARNING			= 1;
+	static final public int N_RC_WARNING_NOTFOUND	= 2;
+	static final public int N_RC_USER_CANCELLED		= 3;
+
 	private Requester mRequester = null;
 
 	private String mInvokeMethod = null;
+
+	private JSONObject mJsRequest = null, mJsReply = null;
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 	//
@@ -51,27 +71,103 @@ public class ApiNode extends TargetNode implements ResultListener
 
 	public JSONObject reply()
 	{
-		return mRequester.pendingReply();
+		return mJsReply;
 	}
 
-	public void replyCommit(Requester.ReplyCode replyCode, String stMessage)
+	public void replyCommit(ReplyCode replyCode, String stReply) throws HandlerException
 	{
-		mRequester.replyCommit(replyCode,stMessage);
+		try
+		{
+			synchronized(mJsReply)
+			{
+				switch(replyCode)
+				{
+					case CRITICAL_ERROR:
+					{
+						Log.d("Requester","Committing reply with ERROR");
+
+						mJsReply.put("$rc",N_RC_ERROR);
+
+						if(stReply == null)
+							stReply = "Unknown error!";
+					}
+					break;
+
+					case SUCCESS_REQUEST:
+					{
+						Log.d("Requester","Committing reply with SUCCESS");
+
+						mJsReply.put("$rc",N_RC_OK);
+
+						if(stReply == null)
+							stReply = "Unspecified SUCCESS!";
+					}
+					break;
+
+					case WARNING_MESSAGE:
+					{
+						Log.d("Requester","Committing reply with WARNING");
+
+						mJsReply.put("$rc",N_RC_WARNING);
+
+						if(stReply == null)
+							stReply = "Unspecified WARNING!";
+					}
+					break;
+
+					case WARNING_NOTFOUND:
+					{
+						Log.d("Requester","Committing reply with NOTFOUND");
+
+						mJsReply.put("$rc", N_RC_WARNING_NOTFOUND);
+
+						if(stReply == null)
+							stReply = "Unknown NOTFOUND warning!";
+					}
+					break;
+
+					case USER_CANCELLED:
+					{
+						Log.d("Requester","Committing reply with USERCANCEL");
+
+						mJsReply.put("$rc", N_RC_USER_CANCELLED);
+
+						if(stReply == null)
+							stReply = "Unknown,was cancelled by user!";
+					}
+					break;
+
+				}
+
+				if(!mJsReply.has("$reply"))
+					mJsReply.put("$reply",stReply);
+
+				JSONObject jso = mJsReply;
+
+				mJsRequest = null;
+				mJsReply = null;
+				jso.notify();
+			};
+		}
+		catch(JSONException e)
+		{
+			throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+		}
 	}
 
 	public void replyCriticalError(String stReply)
 	{
-		replyCommit(Requester.ReplyCode.CRITICAL_ERROR,stReply);
+		replyCommit(ReplyCode.CRITICAL_ERROR,stReply);
 	}
 
 	public void replySuccessComplete(String stReply)
 	{
-		replyCommit(Requester.ReplyCode.SUCCESS_REQUEST,stReply);
+		replyCommit(ReplyCode.SUCCESS_REQUEST,stReply);
 	}
 
 	public JSONObject request()
 	{
-		return mRequester.pendingRequest();
+		return mJsRequest;
 	}
 
 	public Requester requester()
@@ -79,11 +175,13 @@ public class ApiNode extends TargetNode implements ResultListener
 		return mRequester;
 	}
 
-	final public void startRequest(String stMethod) throws FatalException
+	final public void startRequest(String stMethod,JSONObject jsRequest,JSONObject jsReply) throws FatalException
 	{
 		mInvokeMethod = stMethod;
+		mJsRequest = jsRequest;
+		mJsReply = jsReply;
 
-		invokeMethod(stMethod, mRequester.pendingRequest(),mRequester.pendingReply());
+		invokeMethod(stMethod,jsRequest,jsReply);
 	}
 
 	public ApiNode(Object owner, String stClass)
