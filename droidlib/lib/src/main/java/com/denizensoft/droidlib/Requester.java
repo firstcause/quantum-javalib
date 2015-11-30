@@ -1,15 +1,19 @@
 package com.denizensoft.droidlib;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import com.denizensoft.jlib.FatalException;
+import com.denizensoft.jlib.NotFoundException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -28,6 +32,8 @@ public class Requester extends Handler
 	static final public int N_RC_WARNING			= 1;
 	static final public int N_RC_WARNING_NOTFOUND	= 2;
 	static final public int N_RC_USER_CANCELLED		= 3;
+
+	private final Object mOwner;
 
 	static public enum StateCode
 	{
@@ -48,9 +54,9 @@ public class Requester extends Handler
 
 	private StateCode mRequestState = StateCode.REQUESTER_IDLE;
 
-	private RequestNode mRequestNode = null;
+	private ApiNode mApiNode = null;
 
-	private HashMap<String,RequestNode> mTargetMap = new HashMap<String,RequestNode>();
+	private HashMap<String,ApiNode> mApiMap = new HashMap<String,ApiNode>();
 
 	private ArrayList<TokenNode> mTokenNodeList = new ArrayList<>();
 
@@ -60,15 +66,21 @@ public class Requester extends Handler
 
 	protected Pattern mMatchNodeSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
 
-	public void addRequestNode(RequestNode requestNode)
+	public void addApiNode(ApiNode apiNode)
 	{
-		mTargetMap.put(requestNode.nodeTag(), requestNode);
-		requestNode.attachTo(this);
+		mApiMap.put(apiNode.nodeTag(), apiNode);
+		apiNode.attachTo(this);
 	}
 
 	public void addTokenNode(TokenNode tokenNode)
 	{
 		mTokenNodeList.add(tokenNode);
+	}
+
+	public void dropApi(String stClass)
+	{
+		if(mApiMap.containsKey(stClass))
+			mApiMap.remove(stClass);
 	}
 
 	public void dropOwnedNodes(Object owner)
@@ -81,13 +93,31 @@ public class Requester extends Handler
 				i1.remove();
 		}
 
-		Iterator<Map.Entry<String,RequestNode>> i2 = mTargetMap.entrySet().iterator();
+		Iterator<Map.Entry<String,ApiNode>> i2 = mApiMap.entrySet().iterator();
 
 		while(i2.hasNext())
 		{
 			if(i2.next().getValue().nodeOwner().equals(owner))
 				i2.remove();
 		}
+	}
+
+	public boolean hasApi(String stClass)
+	{
+		return mApiMap.containsKey(stClass);
+	}
+
+	public Context getContext()
+	{
+		return null;
+	}
+
+	public ApiNode getApiRef(String stClass) throws NotFoundException
+	{
+		if(mApiMap.containsKey(stClass))
+			return mApiMap.get(stClass);
+
+		throw new NotFoundException(String.format("Requester: api not found: %s",stClass));
 	}
 
 	public boolean isReplyPending()
@@ -116,9 +146,50 @@ public class Requester extends Handler
 		return stReply;
 	}
 
+	public void loadApiClass(String stClassSpec)
+	{
+		try
+		{
+			Log.d("Requester", String.format("Mutiny Class Requested: %s", stClassSpec ));
+
+			Class mutinyClass = Class.forName(stClassSpec);
+
+			Constructor constructor = mutinyClass.getConstructor(Requester.class);
+
+			ApiInvoker apiInvoker = (ApiInvoker) constructor.newInstance(this);
+
+			post(apiInvoker);
+		}
+		catch(InstantiationException e)
+		{
+			throw new FatalException(String.format("Requester: Couldn't instantiate class: %s",stClassSpec),e);
+		}
+		catch(InvocationTargetException e)
+		{
+			throw new FatalException(String.format("Requester: Couldn't invoke constructor: %s",stClassSpec),e);
+		}
+		catch(NoSuchMethodException e)
+		{
+			throw new FatalException(String.format("Requester: Constructor not found? : %s",stClassSpec),e);
+		}
+		catch(IllegalAccessException e)
+		{
+			throw new FatalException(String.format("Requester: Constructor not public? : %s",stClassSpec),e);
+		}
+		catch(ClassNotFoundException e)
+		{
+			throw new FatalException(String.format("Requester: Class not found? : %s",stClassSpec),e);
+		}
+	}
+
 	public Pattern matchNodeSpec()
 	{
 		return mMatchNodeSpec;
+	}
+
+	public Object owner()
+	{
+		return mOwner;
 	}
 
 	public JSONObject nodeMethodRequest(String stNodeSpec, String[] args)
@@ -161,9 +232,9 @@ public class Requester extends Handler
 		return mRequestState;
 	}
 
-	public RequestNode requestNode()
+	public ApiNode requestNode()
 	{
-		return mRequestNode;
+		return mApiNode;
 	}
 
 	public void replyCommit(ReplyCode replyCode, String stReply) throws HandlerException
@@ -285,16 +356,16 @@ public class Requester extends Handler
 					stNodeTag = matcher.group(1);
 					stMethod = matcher.group(2);
 
-					if(!mTargetMap.containsKey(stNodeTag))
+					if(!mApiMap.containsKey(stNodeTag))
 						throw new HandlerException(String.format("%s Undefined action token: %s",stTag,stNodeTag));
 
-					mRequestNode = mTargetMap.get(stNodeTag);
+					mApiNode = mApiMap.get(stNodeTag);
 
 					mPendingRequest = jsRequest;
 
 					mPendingReply = jsReply;
 
-					mRequestNode.startRequest(stMethod);
+					mApiNode.startRequest(stMethod);
 
 					if(mRequestState == StateCode.REPLY_PENDING)
 						Log.d(stTag, "Warn: Reply was pending for current thread...");
@@ -379,7 +450,7 @@ public class Requester extends Handler
 		if(mRequestState != StateCode.REPLY_PENDING)
 			throw new HandlerException("Requester: invalid state, no request is pending!");
 
-		mRequestNode.updateRequestNode(stTag,stToken,bundle);
+		mApiNode.updateRequestNode(stTag,stToken,bundle);
 
 		if(replyCode != ReplyCode.COMMIT_PENDING)
 			replyCommit(replyCode,null);
@@ -402,9 +473,9 @@ public class Requester extends Handler
 			{
 				// Remember, there is only one looper thread, it handles the request invocations,
 				// so there is no point trying to invoke multiple requests simultaneously, as that could
-				// cause a deadlock on the request mutex, and even if the mutex were moved to the RequestNode.
+				// cause a deadlock on the request mutex, and even if the mutex were moved to the ApiNode.
 				// Yet, it is still possible that any number of client threads may simultaneously queue
-				// requests, but on any given requester, only ONE RequestNode can be active at
+				// requests, but on any given requester, only ONE ApiNode can be active at
 				// any given time anyways...
 				//
 				// Sorry...the facts of life...so suck it up!
@@ -427,12 +498,12 @@ public class Requester extends Handler
 					stNodeTag = matcher.group(1);
 					stMethod = matcher.group(2);
 
-					if(!mTargetMap.containsKey(stNodeTag))
+					if(!mApiMap.containsKey(stNodeTag))
 					{
 						throw new HandlerException(String.format("Undefined action token: %s", stNodeTag));
 					}
 
-					mRequestNode = mTargetMap.get(stNodeTag);
+					mApiNode = mApiMap.get(stNodeTag);
 
 					mPendingRequest = jsRequest;
 					mPendingReply = (JSONObject)msg.obj;
@@ -444,7 +515,7 @@ public class Requester extends Handler
 						// Don't monkey with this! As the request wait state can be set elsewhere!
 						// while the handler is in progress!
 						//
-						mRequestNode.startRequest(stMethod);
+						mApiNode.startRequest(stMethod);
 
 						if(mRequestState == StateCode.REPLY_PENDING)
 						{
@@ -486,12 +557,14 @@ public class Requester extends Handler
 		}
 	}
 
-	public Requester(Looper looper)
+	public Requester(Object owner)
 	{
-		super(looper);
+		mOwner = owner;
 	}
 
-	public Requester()
+	public Requester(Looper looper, Object mOwner)
 	{
+		super(looper);
+		this.mOwner = mOwner;
 	}
 }

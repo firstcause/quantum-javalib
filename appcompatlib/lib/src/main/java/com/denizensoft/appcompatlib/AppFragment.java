@@ -7,8 +7,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+import com.denizensoft.droidlib.ApiNode;
 import com.denizensoft.droidlib.HandlerException;
-import com.denizensoft.droidlib.RequestNode;
+import com.denizensoft.droidlib.ResultListener;
 import com.denizensoft.droidlib.UpdateNotifier;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,9 +17,7 @@ import org.json.JSONObject;
 import java.util.Observable;
 import java.util.Observer;
 
-public class AppFragment extends Fragment implements
-		Observer,
-		AppActivity.ResultListener
+public class AppFragment extends Fragment implements Observer,ResultListener
 {
 	protected AppActivity mAppActivity = null;
 
@@ -45,7 +44,7 @@ public class AppFragment extends Fragment implements
 
 		mAppInterface = (AppActivity)view.getContext();
 
-		mAppInterface.requester().addRequestNode(new RequestNode(this,"appfragment"){
+		mAppInterface.requester().addApiNode(new ApiNode(this,"appfragment"){
 
 			@Override
 			public void invokeMethod(String stMethod,JSONObject jsRequest, JSONObject jsReply)

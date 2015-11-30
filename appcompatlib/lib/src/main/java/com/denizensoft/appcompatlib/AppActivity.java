@@ -14,8 +14,13 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Patterns;
 import com.denizensoft.dbclient.DbClient;
+import com.denizensoft.droidlib.ApiNode;
 import com.denizensoft.droidlib.Requester;
+import com.denizensoft.droidlib.ResultListener;
 import com.denizensoft.droidlib.UpdateNotifier;
+import com.denizensoft.jlib.FatalException;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -34,11 +39,18 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 
 	protected UpdateNotifier mNotifier = null;
 
-	private Requester mRequester = new Requester();
+	private Requester mRequester = new Requester(this){
+			@Override
+			public Context getContext()
+			{
+				return (AppActivity)owner();
+			}
+		};
 
-	protected AlertDialog.Builder mMainAlertDialogBuilder = null;
 
 	protected ArrayList<ResultListener> mResultListeners = null;
+
+	protected AlertDialog.Builder mMainAlertDialogBuilder = null;
 
 	@Override
 	public void uncaughtException(Thread thread, Throwable ex)
@@ -46,11 +58,6 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 		Log.d("Runtime Exception",ex.getMessage());
 
 		appAlertDialog("Runtime Exception",ex.getMessage());
-	}
-
-	public interface ResultListener
-	{
-		public boolean onActivityResultHook(int requestCode, int resultCode, Intent data);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -118,6 +125,22 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 			mResultListeners = new ArrayList<ResultListener>();
 
 		mResultListeners.add(listener);
+	}
+
+	@Override
+	public void appAddApiClassResultListener(String stApiSpec)
+	{
+		ApiNode node = requester().getApiRef(stApiSpec);
+
+		if(node != null)
+		{
+			appAddResultListener(node);
+		}
+		else
+		{
+			throw new FatalException(String.format("AppActivity: couldn't add result listener, class not found: %s",
+					stApiSpec));
+		}
 	}
 
 	@Override
@@ -268,5 +291,67 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	public UpdateNotifier updateNotifier()
 	{
 		return mNotifier;
+	}
+
+	public AppActivity()
+	{
+		requester().addApiNode(new ApiNode(this,"AppActivity"){
+			@Override
+			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
+			{
+				try
+				{
+					switch(stMethod)
+					{
+						case "addApiResultListener" :
+						{
+							ApiNode node = requester().getApiRef(jsRequest.getJSONArray("$args").getString(0));
+
+							appAddResultListener(node);
+
+							replySuccessComplete(null);
+						}
+						break;
+
+						case "dropApiResultListener" :
+						{
+							ApiNode node = requester().getApiRef(jsRequest.getJSONArray("$args").getString(0));
+
+							appDropResultListener(node);
+
+							replySuccessComplete(null);
+						}
+						break;
+
+						case "invokeApi" :
+						{
+							if(!jsRequest.has("$args"))
+								throw new RuntimeException("main: request has no $args!");
+
+							try
+							{
+								String stMutinySpec = jsRequest.getJSONArray("$args").getString(0);
+
+								Log.d("main", String.format("Mutiny Class Requested: %s", stMutinySpec ));
+
+								requester().loadApiClass(stMutinySpec);
+
+								replySuccessComplete(null);
+							}
+							catch(JSONException e)
+							{
+								throw new FatalException("JSON exception invoking mutiny",e);
+							}
+						}
+						break;
+
+					}
+				}
+				catch(JSONException e)
+				{
+					throw new FatalException(e);
+				}
+			}
+		});
 	}
 }

@@ -202,7 +202,7 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 		webSettings.setBuiltInZoomControls(false);
 		webSettings.setSupportZoom(true);
 
-		mAppInterface.requester().addRequestNode(new RequestNode(this,"webapp"){
+		mAppInterface.requester().addApiNode(new ApiNode(this,"webapp"){
 			@Override
 			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
 			{

@@ -6,7 +6,7 @@ import android.util.Log;
 import android.view.View;
 import com.denizensoft.dbclient.DbException;
 import com.denizensoft.droidlib.Requester;
-import com.denizensoft.droidlib.RequestNode;
+import com.denizensoft.droidlib.ApiNode;
 import com.denizensoft.droidlib.WorkItem;
 import com.denizensoft.iablib.IabHelper;
 import com.denizensoft.iablib.IabResult;
@@ -261,7 +261,7 @@ public class IABFragment extends WebAppFragment implements
 
 			mWebView.addJavascriptInterface(this, "APPAPI");
 
-			mAppInterface.requester().addRequestNode(new RequestNode(this,"iab"){
+			mAppInterface.requester().addApiNode(new ApiNode(this,"iab"){
 
 				@Override
 				public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
@@ -278,7 +278,7 @@ public class IABFragment extends WebAppFragment implements
 
 								asyncRequester.execute();
 
-								commitReply(Requester.ReplyCode.SUCCESS_REQUEST,null);
+								replyCommit(Requester.ReplyCode.SUCCESS_REQUEST,null);
 							}
 							catch(LibException e)
 							{
@@ -302,7 +302,7 @@ public class IABFragment extends WebAppFragment implements
 
 								requester().pendingReply().put("$iabrc", 0);
 
-								commitReply(Requester.ReplyCode.SUCCESS_REQUEST, null);
+								replyCommit(Requester.ReplyCode.SUCCESS_REQUEST, null);
 							}
 						}
 						else if(stMethod.equals("iab-inventory-status"))
@@ -320,7 +320,7 @@ public class IABFragment extends WebAppFragment implements
 							{
 								Log.e("IAB","Can't do consume, the inventory is empty!");
 
-								commitReply(Requester.ReplyCode.CRITICAL_ERROR,"Can't do consume, the inventory is empty!");
+								replyCommit(Requester.ReplyCode.CRITICAL_ERROR,"Can't do consume, the inventory is empty!");
 							}
 							else
 							{
@@ -360,7 +360,7 @@ public class IABFragment extends WebAppFragment implements
 									mAppInterface.appFatalErrorHook("IAB","Couldn't update the IAB_INVENTORY_STATUS!");
 								}
 
-								commitReply(Requester.ReplyCode.SUCCESS_REQUEST,null);
+								replyCommit(Requester.ReplyCode.SUCCESS_REQUEST,null);
 							}
 						}
 						else if(stMethod.equals("iab-purchase-subscription"))

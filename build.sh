@@ -1,10 +1,20 @@
-if [[ $# -eq 0 ]]
+echo Invoked with args: $1 $2 $3 $4
+
+if [[ $# = 0 ]];
 then
 	arg1="clean"
 	arg2="build"
 	arg3="artifactoryPublish"
-elif [[ "$1" -eq "clearcache" ]]
+else
+	arg1=$1
+	arg2=$2
+	arg3=$3
+	arg4=$4
+fi
+
+if [[ "$arg1" = "clearcache" ]];
 then
+	echo Clearing the cache...
 	find . -name "libraries" -type d -exec rm -frv "{}/*.xml" \;
 	find . -name "build" -type d -exec rm -frv "{}" \;
 	find ~/.gradle/ -name "com.denizensoft*" -type d -exec rm -frv "{}" \;
