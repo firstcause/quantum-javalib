@@ -14,10 +14,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Patterns;
 import com.denizensoft.dbclient.DbClient;
-import com.denizensoft.droidlib.ApiNode;
-import com.denizensoft.droidlib.Requester;
-import com.denizensoft.droidlib.ResultListener;
-import com.denizensoft.droidlib.UpdateNotifier;
+import com.denizensoft.droidlib.*;
 import com.denizensoft.jlib.FatalException;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -323,27 +320,8 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 						}
 						break;
 
-						case "invokeApi" :
-						{
-							if(!jsRequest.has("$args"))
-								throw new RuntimeException("main: request has no $args!");
-
-							try
-							{
-								String stMutinySpec = jsRequest.getJSONArray("$args").getString(0);
-
-								Log.d("main", String.format("Mutiny Class Requested: %s", stMutinySpec ));
-
-								requester().loadApiClass(stMutinySpec);
-
-								replySuccessComplete(null);
-							}
-							catch(JSONException e)
-							{
-								throw new FatalException("JSON exception invoking mutiny",e);
-							}
-						}
-						break;
+						default:
+							throw new FatalException(String.format("AppActivity: unknown mthod: %s",stMethod));
 
 					}
 				}

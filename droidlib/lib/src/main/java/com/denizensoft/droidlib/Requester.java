@@ -24,19 +24,34 @@ public class Requester extends Handler
 	static final public int N_MSG_REQUEST 			= ( N_APP_MESSAGE + 1 );
 	static final public int N_MSG_TOKEN 			= ( N_APP_MESSAGE + 2 );
 
+	static final public int N_RC_ERROR				= -1;
+	static final public int N_RC_OK					= 0;
+	static final public int N_RC_WARNING			= 1;
+	static final public int N_RC_WARNING_NOTFOUND	= 2;
+	static final public int N_RC_USER_CANCELLED		= 3;
+
 	private final Object mOwner;
 
-	static public enum StateCode
+	public class ApiContext
 	{
-		REQUESTER_IDLE,
-		REQUEST_PENDING,
-		REPLY_PENDING,
-		REPLY_READY
-	}
+		public String mState = "new";
 
-	private Stack<ApiNode> mApiNodeStack = new Stack<>();
+		public ApiNode mApiNode = null;
 
-	private ApiNode mApiNode = null;
+		public String mMethod = null;
+
+		public JSONObject mJsRequest = null, mJsReply = null;
+
+		public ApiContext(ApiNode apiNode, String stMethod, JSONObject jsRequest,JSONObject jsReply)
+		{
+			mApiNode = apiNode;
+			mMethod = stMethod;
+			mJsRequest = jsRequest;
+			mJsReply = jsReply;
+		}
+	};
+
+	private Stack<ApiContext> mContextStack = new Stack<>();
 
 	private HashMap<String,ApiNode> mApiMap = new HashMap<String,ApiNode>();
 
@@ -44,6 +59,62 @@ public class Requester extends Handler
 
 	protected Pattern mMatchNodeSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
 
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//
+	@Override
+	public void handleMessage(Message msg)
+	{
+		switch(msg.what)
+		{
+			case N_MSG_REQUEST:
+			{
+				// Remember, there is only one looper thread, it handles the request invocations,
+				// it is not possible for two threads to be here...
+				//
+				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
+
+				ApiContext apiContext = (ApiContext) msg.obj;
+
+				apiContext.mState = "invoked";
+
+				mContextStack.push(apiContext);
+
+				apiContext.mApiNode.invokeMethod(apiContext.mMethod,apiContext.mJsRequest,apiContext.mJsReply);
+
+				Log.d("Requester", String.format("%08X: invoke complete...",Thread.currentThread().getId()));
+			}
+			break;
+
+			case N_MSG_TOKEN:
+			{
+				String stToken = msg.getData().getString("$token");
+
+				if(stToken != null)
+				{
+					for(TokenNode node: mTokenNodeList)
+					{
+						Matcher matcher = node.tokenSpecification().matcher(stToken);
+
+						if(matcher.matches())
+							node.tokenHandler(matcher.group(1),msg.getData());
+					}
+				}
+			}
+			break;
+
+			default:
+			{
+				super.handleMessage(msg);
+			}
+			break;
+
+		}
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	//
 	public void addApiNode(ApiNode apiNode)
 	{
 		mApiMap.put(apiNode.nodeTag(), apiNode);
@@ -131,7 +202,7 @@ public class Requester extends Handler
 
 			ApiInvoker apiInvoker = (ApiInvoker) constructor.newInstance(this);
 
-			post(apiInvoker);
+			apiInvoker.invokeApi();
 		}
 		catch(InstantiationException e)
 		{
@@ -165,7 +236,7 @@ public class Requester extends Handler
 		return mOwner;
 	}
 
-	public JSONObject nodeMethodRequest(String stNodeSpec, String[] args)
+	public JSONObject apiMethodRequest(String stNodeSpec, String[] args)
 	{
 		JSONObject jsRequest = new JSONObject();
 
@@ -190,9 +261,95 @@ public class Requester extends Handler
 		return sendRequest(jsRequest.toString());
 	}
 
+	public ApiContext apiContext()
+	{
+		return mContextStack.peek();
+	}
+
 	public ApiNode apiNode()
 	{
-		return mApiNodeStack.peek();
+		return mContextStack.peek().mApiNode;
+	}
+
+	public void replyCommit(ApiNode.ReplyCode replyCode, String stReply) throws HandlerException
+	{
+		try
+		{
+			ApiContext ac = apiContext();
+
+			synchronized(ac)
+			{
+				switch(replyCode)
+				{
+					case CRITICAL_ERROR:
+					{
+						Log.d("Requester","Committing reply with ERROR");
+
+						ac.mJsReply.put("$rc",N_RC_ERROR);
+
+						if(stReply == null)
+							stReply = "Unknown error!";
+					}
+					break;
+
+					case SUCCESS_REQUEST:
+					{
+						Log.d("Requester","Committing reply with SUCCESS");
+
+						ac.mJsReply.put("$rc",N_RC_OK);
+
+						if(stReply == null)
+							stReply = "Unspecified SUCCESS!";
+					}
+					break;
+
+					case WARNING_MESSAGE:
+					{
+						Log.d("Requester","Committing reply with WARNING");
+
+						ac.mJsReply.put("$rc",N_RC_WARNING);
+
+						if(stReply == null)
+							stReply = "Unspecified WARNING!";
+					}
+					break;
+
+					case WARNING_NOTFOUND:
+					{
+						Log.d("Requester","Committing reply with NOTFOUND");
+
+						ac.mJsReply.put("$rc", N_RC_WARNING_NOTFOUND);
+
+						if(stReply == null)
+							stReply = "Unknown NOTFOUND warning!";
+					}
+					break;
+
+					case USER_CANCELLED:
+					{
+						Log.d("Requester","Committing reply with USERCANCEL");
+
+						ac.mJsReply.put("$rc", N_RC_USER_CANCELLED);
+
+						if(stReply == null)
+							stReply = "Unknown,was cancelled by user!";
+					}
+					break;
+
+				}
+
+				if(!ac.mJsReply.has("$reply"))
+					ac.mJsReply.put("$reply",stReply);
+
+				ac.mState = "done";
+
+				ac.notify();
+			};
+		}
+		catch(JSONException e)
+		{
+			throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
+		}
 	}
 
 	public JSONObject sendRequest(JSONObject jsRequest)
@@ -204,95 +361,88 @@ public class Requester extends Handler
 	{
 		JSONObject jsReply = new JSONObject();
 
-		String stTag = String.format("%08X: Requester",Thread.currentThread().getId());
-
-		if(this.getLooper().getThread().getId() == Thread.currentThread().getId())
+		try
 		{
-			try
+			JSONObject jsRequest = new JSONObject(stJSON);
+
+			String
+					stTag = String.format("%08X: Requester",Thread.currentThread().getId()),
+					stNodeSpec = jsRequest.getString("$nodespec"),
+					stClassTag, stMethod = null;
+
+			Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
+
+			if(!matcher.matches())
+				throw new HandlerException(String.format("Requester: Invalid node specification: %s",stNodeSpec));
+
+			stClassTag = matcher.group(1);
+			stMethod = matcher.group(2);
+
+			if(!mApiMap.containsKey(stClassTag))
 			{
-				JSONObject jsRequest = new JSONObject(stJSON);
-
-				String
-						stNodeSpec = jsRequest.getString("$nodespec"),
-						stNodeTag, stMethod = null;
-
-				Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
-
-				if(!matcher.matches())
-				{
-					throw new HandlerException(String.format("%s: Malformed node spec not matched: %s",
-							stTag, stNodeSpec));
-				}
-
-				stNodeTag = matcher.group(1);
-				stMethod = matcher.group(2);
-
-				if(!mApiMap.containsKey(stNodeTag))
-					throw new HandlerException(String.format("%s Undefined action token: %s",stTag,stNodeTag));
-
-				mApiNode = mApiMap.get(stNodeTag);
-
-				synchronized(mApiNode)
-				{
-					mApiNode.startRequest(stMethod,jsRequest,jsReply);
-				}
+				throw new HandlerException(String.format("Undefined API class: %s", stClassTag));
 			}
-			catch(JSONException e)
+
+			ApiNode apiNode = mApiMap.get(stClassTag);
+
+			ApiContext apiContext = new ApiContext(apiNode,stMethod,jsRequest,jsReply);
+
+			Message msg = obtainMessage();
+
+			msg.what = N_MSG_REQUEST;
+			msg.obj = apiContext;
+
+			if(this.getLooper().getThread().getId() != Thread.currentThread().getId())
 			{
-				throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
-			}
-			return jsReply;
-		}
-
-		Message msg = obtainMessage();
-
-		msg.what = N_MSG_REQUEST;
-		msg.setData(new Bundle());
-		msg.getData().putString("$request",stJSON);
-		msg.obj = jsReply;
-
-		synchronized(msg)
-		{
-			boolean bDequeued = false, bReplyReady = false;
-
-			sendMessage(msg);
-
-			Log.d("Requester: " + Thread.currentThread().getId(), "Request queued, starting wait....");
-
-			while(!bDequeued)
-			{
-				try
+				synchronized(apiContext)
 				{
-					msg.wait();
+					Log.d(stTag, "Sending message....");
 
-					bDequeued = true;
+					apiContext.mState = "queued";
 
-					synchronized(jsReply)
+					if(!sendMessage(msg))
+						throw new HandlerException("Send failed for request message?!");
+
+					Log.d(stTag, "Request queued, starting wait....");
+
+					boolean bReplyReady = false;
+
+					while(!bReplyReady)
 					{
-						Log.d("Requester: " + Thread.currentThread().getId(), "Reply pending, starting wait....");
-
-						while(!bReplyReady)
+						try
 						{
-							try
-							{
-								jsReply.wait();
+							apiContext.wait();
 
-								bReplyReady = true;
+							bReplyReady = true;
 
-								Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait completed....");
-							}
-							catch(InterruptedException e)
-							{
-								Log.d("Requester: "+Thread.currentThread().getId(),"Reply wait interrupted, restarting....");
-							}
+							Log.d(stTag, "Reply wait completed....");
+						}
+						catch(InterruptedException e)
+						{
+							Log.d(stTag, "Reply wait interrupted, restarting....");
 						}
 					}
 				}
-				catch(InterruptedException e)
+			}
+			else
+			{
+				Log.d(stTag, "Handling synchronous message....");
+
+				handleMessage(msg);
+
+				if(!apiContext.mState.equals("done"))
 				{
-					Log.d("Requester: "+Thread.currentThread().getId(),"Message wait interrupted, restarting....");
+					Log.d(stTag, "Context state not done...");
 				}
 			}
+
+			mContextStack.pop();
+
+			Log.d(stTag, "Leaving....");
+		}
+		catch(JSONException e)
+		{
+			e.printStackTrace();
 		}
 		return jsReply;
 	}
@@ -319,92 +469,54 @@ public class Requester extends Handler
 		mMatchNodeSpec = pattern;
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//
-	//
-	@Override
-	public void handleMessage(Message msg)
-	{
-		switch(msg.what)
-		{
-			case N_MSG_REQUEST:
-			{
-				// Remember, there is only one looper thread, it handles the request invocations,
-				// it is not possible for two threads to be here...
-				//
-				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
-
-				synchronized(msg)
-				{
-					msg.notify();
-
-					try
-					{
-						JSONObject jsRequest = new JSONObject(msg.getData().getString("$request"));
-
-						String
-								stNodeSpec = jsRequest.getString("$nodespec"),
-								stNodeTag, stMethod = null;
-
-						Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
-
-						if(!matcher.matches())
-							throw new HandlerException(String.format("Requester: Malformed node spec not matched: %s",stNodeSpec));
-
-						stNodeTag = matcher.group(1);
-						stMethod = matcher.group(2);
-
-						if(!mApiMap.containsKey(stNodeTag))
-						{
-							throw new HandlerException(String.format("Undefined action token: %s", stNodeTag));
-						}
-
-						mApiNode = mApiMap.get(stNodeTag);
-
-						mApiNode.startRequest(stMethod,jsRequest,(JSONObject) msg.obj);
-					}
-					catch(JSONException e)
-					{
-						throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
-					}
-				}
-			}
-			break;
-
-			case N_MSG_TOKEN:
-			{
-				String stToken = msg.getData().getString("$token");
-
-				if(stToken != null)
-				{
-					for(TokenNode node: mTokenNodeList)
-					{
-						Matcher matcher = node.tokenSpecification().matcher(stToken);
-
-						if(matcher.matches())
-							node.tokenHandler(matcher.group(1),msg.getData());
-					}
-				}
-			}
-			break;
-
-			default:
-			{
-				super.handleMessage(msg);
-			}
-			break;
-
-		}
-	}
-
 	public Requester(Object owner)
 	{
 		mOwner = owner;
+		init();
+	}
+
+	private void init()
+	{
+		addApiNode(new ApiNode(this,"Requester"){
+			@Override
+			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
+			{
+				switch(stMethod)
+				{
+					case "invokeApi" :
+					{
+						if(!jsRequest.has("$args"))
+							throw new HandlerException("Requester: request has no $args!");
+
+						try
+						{
+							String stMutinySpec = jsRequest.getJSONArray("$args").getString(0);
+
+							Log.d("Requester", String.format("Mutiny Class Requested: %s", stMutinySpec ));
+
+							loadApiClass(stMutinySpec);
+
+							replySuccessComplete(null);
+						}
+						catch(JSONException e)
+						{
+							throw new FatalException("JSON exception invoking mutiny",e);
+						}
+					}
+					break;
+
+					default:
+						throw new HandlerException(String.format("Requester: unknown method: %s",stMethod));
+
+				}
+			}
+		});
 	}
 
 	public Requester(Looper looper, Object mOwner)
 	{
 		super(looper);
 		this.mOwner = mOwner;
+		init();
 	}
 }

@@ -1,22 +1,16 @@
 package com.denizensoft.droidlib;
 
-public class ApiInvoker implements Runnable
+public class ApiInvoker
 {
 	final private Requester mRequester;
 
-	public void invokeMutiny()
+	public void invokeApi()
 	{
 	}
 
 	protected Requester requester()
 	{
 		return mRequester;
-	}
-
-	@Override
-	public void run()
-	{
-		invokeMutiny();
 	}
 
 	public ApiInvoker(Requester requester)
