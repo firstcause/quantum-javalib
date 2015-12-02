@@ -302,7 +302,11 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 					{
 						case "addApiResultListener" :
 						{
-							ApiNode node = requester().getApiRef(jsRequest.getJSONArray("$args").getString(0));
+							String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+
+							Log.d("AppActivity", String.format("Adding API result listener: %s",stApiSpec));
+
+							ApiNode node = requester().getApiRef(stApiSpec);
 
 							appAddResultListener(node);
 
@@ -312,7 +316,11 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 
 						case "dropApiResultListener" :
 						{
-							ApiNode node = requester().getApiRef(jsRequest.getJSONArray("$args").getString(0));
+							String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+
+							Log.d("AppActivity", String.format("Dropping result listener: %s",stApiSpec));
+
+							ApiNode node = requester().getApiRef(stApiSpec);
 
 							appDropResultListener(node);
 

@@ -32,8 +32,12 @@ public class Requester extends Handler
 
 	private final Object mOwner;
 
+	private long mRequestSequence = 0;
+
 	public class ApiContext
 	{
+		public final long mSequence;
+
 		public String mState = "new";
 
 		public ApiNode mApiNode = null;
@@ -42,8 +46,9 @@ public class Requester extends Handler
 
 		public JSONObject mJsRequest = null, mJsReply = null;
 
-		public ApiContext(ApiNode apiNode, String stMethod, JSONObject jsRequest,JSONObject jsReply)
+		public ApiContext(long nSequence,ApiNode apiNode, String stMethod, JSONObject jsRequest,JSONObject jsReply)
 		{
+			mSequence = nSequence;
 			mApiNode = apiNode;
 			mMethod = stMethod;
 			mJsRequest = jsRequest;
@@ -72,9 +77,11 @@ public class Requester extends Handler
 				// Remember, there is only one looper thread, it handles the request invocations,
 				// it is not possible for two threads to be here...
 				//
-				Log.d("Requester", String.format("%08X: Hanling a request...",Thread.currentThread().getId()));
-
 				ApiContext apiContext = (ApiContext) msg.obj;
+
+				String stLogTag = String.format("Requester:%08X:%05X",Thread.currentThread().getId(),apiContext.mSequence);
+
+				Log.d(stLogTag, "invoke start");
 
 				apiContext.mState = "invoked";
 
@@ -82,7 +89,7 @@ public class Requester extends Handler
 
 				apiContext.mApiNode.invokeMethod(apiContext.mMethod,apiContext.mJsRequest,apiContext.mJsReply);
 
-				Log.d("Requester", String.format("%08X: invoke complete...",Thread.currentThread().getId()));
+				Log.d(stLogTag, "invoke complete");
 			}
 			break;
 
@@ -194,7 +201,7 @@ public class Requester extends Handler
 	{
 		try
 		{
-			Log.d("Requester", String.format("Mutiny Class Requested: %s", stClassSpec ));
+			Log.d("Requester", String.format("Loading class: %s", stClassSpec ));
 
 			Class mutinyClass = Class.forName(stClassSpec);
 
@@ -277,13 +284,15 @@ public class Requester extends Handler
 		{
 			ApiContext ac = apiContext();
 
+			String stLogTag = String.format("Requester:%08X:%05X",Thread.currentThread().getId(),ac.mSequence);
+
 			synchronized(ac)
 			{
 				switch(replyCode)
 				{
 					case CRITICAL_ERROR:
 					{
-						Log.d("Requester","Committing reply with ERROR");
+						Log.d(stLogTag,"Committing reply with ERROR");
 
 						ac.mJsReply.put("$rc",N_RC_ERROR);
 
@@ -294,7 +303,7 @@ public class Requester extends Handler
 
 					case SUCCESS_REQUEST:
 					{
-						Log.d("Requester","Committing reply with SUCCESS");
+						Log.d(stLogTag,"Committing reply with SUCCESS");
 
 						ac.mJsReply.put("$rc",N_RC_OK);
 
@@ -305,7 +314,7 @@ public class Requester extends Handler
 
 					case WARNING_MESSAGE:
 					{
-						Log.d("Requester","Committing reply with WARNING");
+						Log.d(stLogTag,"Committing reply with WARNING");
 
 						ac.mJsReply.put("$rc",N_RC_WARNING);
 
@@ -316,7 +325,7 @@ public class Requester extends Handler
 
 					case WARNING_NOTFOUND:
 					{
-						Log.d("Requester","Committing reply with NOTFOUND");
+						Log.d(stLogTag,"Committing reply with NOTFOUND");
 
 						ac.mJsReply.put("$rc", N_RC_WARNING_NOTFOUND);
 
@@ -327,7 +336,7 @@ public class Requester extends Handler
 
 					case USER_CANCELLED:
 					{
-						Log.d("Requester","Committing reply with USERCANCEL");
+						Log.d(stLogTag,"Committing reply with USERCANCEL");
 
 						ac.mJsReply.put("$rc", N_RC_USER_CANCELLED);
 
@@ -363,11 +372,16 @@ public class Requester extends Handler
 
 		try
 		{
+			long nSequence = mRequestSequence++;
+
 			JSONObject jsRequest = new JSONObject(stJSON);
 
 			String
-					stTag = String.format("%08X: Requester",Thread.currentThread().getId()),
+					stLogTag = String.format("Requester:%08X:%05X:%08X",getLooper().getThread().getId(),
+						nSequence,Thread.currentThread().getId()),
+
 					stNodeSpec = jsRequest.getString("$nodespec"),
+
 					stClassTag, stMethod = null;
 
 			Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
@@ -385,7 +399,7 @@ public class Requester extends Handler
 
 			ApiNode apiNode = mApiMap.get(stClassTag);
 
-			ApiContext apiContext = new ApiContext(apiNode,stMethod,jsRequest,jsReply);
+			ApiContext apiContext = new ApiContext(nSequence,apiNode,stMethod,jsRequest,jsReply);
 
 			Message msg = obtainMessage();
 
@@ -396,14 +410,14 @@ public class Requester extends Handler
 			{
 				synchronized(apiContext)
 				{
-					Log.d(stTag, "Sending message....");
+					Log.d(stLogTag, "sendRequest: sending message....");
 
 					apiContext.mState = "queued";
 
 					if(!sendMessage(msg))
 						throw new HandlerException("Send failed for request message?!");
 
-					Log.d(stTag, "Request queued, starting wait....");
+					Log.d(stLogTag, "Request queued, starting wait....");
 
 					boolean bReplyReady = false;
 
@@ -415,30 +429,30 @@ public class Requester extends Handler
 
 							bReplyReady = true;
 
-							Log.d(stTag, "Reply wait completed....");
+							Log.d(stLogTag, "sendRequest: reply wait completed....");
 						}
 						catch(InterruptedException e)
 						{
-							Log.d(stTag, "Reply wait interrupted, restarting....");
+							Log.d(stLogTag, "sendRequest: reply wait interrupted, restarting....");
 						}
 					}
 				}
 			}
 			else
 			{
-				Log.d(stTag, "Handling synchronous message....");
+				Log.d(stLogTag, "sendRequest: handling synchronous message....");
 
 				handleMessage(msg);
 
 				if(!apiContext.mState.equals("done"))
 				{
-					Log.d(stTag, "Context state not done...");
+					Log.d(stLogTag, "sendRequest: context state not done...");
 				}
 			}
 
 			mContextStack.pop();
 
-			Log.d(stTag, "Leaving....");
+			Log.d(stLogTag, "sendRequest: leaving....");
 		}
 		catch(JSONException e)
 		{
