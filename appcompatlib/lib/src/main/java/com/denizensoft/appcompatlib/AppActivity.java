@@ -61,8 +61,10 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	// Android overrides
 	//
 	@Override
-	protected void onActivityResult(int requestCode, int resultCode,Intent data)
+	public void onActivityResult(int requestCode, int resultCode,Intent data)
 	{
+		super.onActivityResult(requestCode, resultCode, data);
+
 		if(mResultListeners != null)
 		{
 			for(ResultListener resultListener : mResultListeners)
@@ -72,9 +74,6 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 			}
 		}
 
-		// Nothing in this activtiy handles it...pass it on up...
-		//
-		super.onActivityResult(requestCode, resultCode, data);
 	}
 
 	@Override
