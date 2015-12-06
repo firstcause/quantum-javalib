@@ -1,9 +1,12 @@
 package com.denizensoft.droidlib;
 
 import android.content.Intent;
-import android.os.Bundle;
 import com.denizensoft.jlib.FatalException;
+import com.denizensoft.jlib.LibException;
+import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.HashMap;
 
 
 /**
@@ -20,6 +23,8 @@ public class ApiNode extends TargetNode implements ResultListener
 		USER_CANCELLED
 	}
 
+	HashMap<String,ApiMethod> mMethodMap = null;
+
 	private Requester mRequester = null;
 
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -32,14 +37,32 @@ public class ApiNode extends TargetNode implements ResultListener
 		return false;
 	}
 
-	public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
+	public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 	{
-		throw new FatalException("ApiNode: error! Undefined invocation handler!");
+		throw new HandlerException("ApiNode: undefined builtins handler function!");
 	}
 
-	public void updateRequestNode(String stTag, String stToken, Bundle bundle)
+	final public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
 	{
-		throw new FatalException("ApiNode: error! Undefined update handler!");
+		try
+		{
+			if(mMethodMap != null && mMethodMap.containsKey(stMethod))
+			{
+				mMethodMap.get(stMethod).callback(this,jsRequest,jsReply);
+			}
+			else
+			{
+				builtins(stMethod,jsRequest,jsReply);
+			}
+		}
+		catch(LibException e)
+		{
+			throw new FatalException(String.format("ApiNode:%s.%s error: %s",nodeTag(),stMethod,e.getMessage()));
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException(String.format("ApiNode:%s.%s: JSON error: %s",nodeTag(),stMethod,e.getMessage()));
+		}
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +72,14 @@ public class ApiNode extends TargetNode implements ResultListener
 	public void attachTo(Requester requester)
 	{
 		mRequester = requester;
+	}
+
+	public void attachApiMethod(ApiMethod apiMethod)
+	{
+		if(mMethodMap == null)
+			mMethodMap = new HashMap<>();
+
+		mMethodMap.put(apiMethod.methodTag(),apiMethod);
 	}
 
 	public String method()

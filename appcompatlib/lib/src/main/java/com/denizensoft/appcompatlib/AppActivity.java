@@ -10,12 +10,19 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Patterns;
 import com.denizensoft.dbclient.DbClient;
-import com.denizensoft.droidlib.*;
+import com.denizensoft.droidlib.ApiNode;
+import com.denizensoft.droidlib.Requester;
+import com.denizensoft.droidlib.ResultListener;
+import com.denizensoft.droidlib.UpdateNotifier;
 import com.denizensoft.jlib.FatalException;
+import com.denizensoft.jlib.LibException;
+import com.denizensoft.jlib.NotFoundException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -275,6 +282,15 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 		setProgressBarIndeterminateVisibility(true);
 	}
 
+	public void invokeFragment(int nFrameContainer, Fragment fragment)
+	{
+		FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+
+		transaction.replace(nFrameContainer, fragment);
+
+		transaction.commit();
+	}
+
 	public void restartActivity()
 	{
 		Intent i = getBaseContext().getPackageManager().getLaunchIntentForPackage(getPackageName());
@@ -293,48 +309,41 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 	{
 		requester().addApiNode(new ApiNode(this,"AppActivity"){
 			@Override
-			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
+			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 			{
-				try
+				switch(stMethod)
 				{
-					switch(stMethod)
+					case "addApiResultListener" :
 					{
-						case "addApiResultListener" :
-						{
-							String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
 
-							Log.d("AppActivity", String.format("Adding API result listener: %s",stApiSpec));
+						Log.d("AppActivity", String.format("Adding API result listener: %s",stApiSpec));
 
-							ApiNode node = requester().getApiRef(stApiSpec);
+						ApiNode node = requester().getApiRef(stApiSpec);
 
-							appAddResultListener(node);
+						appAddResultListener(node);
 
-							replySuccessComplete(null);
-						}
-						break;
-
-						case "dropApiResultListener" :
-						{
-							String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
-
-							Log.d("AppActivity", String.format("Dropping result listener: %s",stApiSpec));
-
-							ApiNode node = requester().getApiRef(stApiSpec);
-
-							appDropResultListener(node);
-
-							replySuccessComplete(null);
-						}
-						break;
-
-						default:
-							throw new FatalException(String.format("AppActivity: unknown mthod: %s",stMethod));
-
+						replySuccessComplete(null);
 					}
-				}
-				catch(JSONException e)
-				{
-					throw new FatalException(e);
+					break;
+
+					case "dropApiResultListener" :
+					{
+						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+
+						Log.d("AppActivity", String.format("Dropping result listener: %s",stApiSpec));
+
+						ApiNode node = requester().getApiRef(stApiSpec);
+
+						appDropResultListener(node);
+
+						replySuccessComplete(null);
+					}
+					break;
+
+					default:
+						throw new NotFoundException(String.format("unknown method: %s",stMethod));
+
 				}
 			}
 		});

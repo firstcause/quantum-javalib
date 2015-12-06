@@ -7,7 +7,7 @@ import android.util.Log;
 import android.view.View;
 import android.webkit.*;
 import com.denizensoft.droidlib.*;
-import com.denizensoft.jlib.FatalException;
+import com.denizensoft.jlib.LibException;
 import com.denizensoft.jlib.Tempus;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -202,25 +202,16 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 		webSettings.setBuiltInZoomControls(false);
 		webSettings.setSupportZoom(true);
 
-		mAppInterface.requester().addApiNode(new ApiNode(this,"webapp"){
-			@Override
-			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
-			{
-				if(stMethod.equals("load-page"))
-				{
-					try
+		mAppInterface.requester().addApiNode(new ApiNode(this,"WebView"))
+				.attachApiMethod(new ApiMethod("loadPage"){
+					@Override
+					public void callback(ApiNode apiNode, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 					{
 						String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
 
 						webView().loadUrl(stPageSpec);
-					}
-					catch(JSONException e)
-					{
-						throw new FatalException("Parameter operation caused JSON exception",e);
-					}
-				}
-			}
-		});
+					};
+				});
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////

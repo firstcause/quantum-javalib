@@ -5,6 +5,7 @@ import android.view.View;
 import com.denizensoft.dbclient.DbClient;
 import com.denizensoft.droidlib.ApiNode;
 import com.denizensoft.jlib.FatalException;
+import com.denizensoft.jlib.LibException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -32,7 +33,7 @@ abstract public class DbClientFragment extends AppFragment
 
 		mAppInterface.requester().addApiNode(new ApiNode(this,"dbclient"){
 			@Override
-			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
+			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 			{
 				ApiNode.ReplyCode replyCode = ApiNode.ReplyCode.SUCCESS_REQUEST;
 

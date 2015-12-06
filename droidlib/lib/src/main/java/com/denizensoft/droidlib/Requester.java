@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import com.denizensoft.jlib.FatalException;
+import com.denizensoft.jlib.LibException;
 import com.denizensoft.jlib.NotFoundException;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -62,7 +63,7 @@ public class Requester extends Handler
 
 	private ArrayList<TokenNode> mTokenNodeList = new ArrayList<>();
 
-	protected Pattern mMatchNodeSpec = Pattern.compile("([\\w\\-\\_]+)\\.{1}([\\w\\-\\_]+)");
+	protected Pattern mMatchNodeSpec = Pattern.compile("([^\\.]+)\\.{1}([\\d\\w\\-\\_]+)");
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//
@@ -122,10 +123,20 @@ public class Requester extends Handler
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//
 	//
-	public void addApiNode(ApiNode apiNode)
+	public ApiNode addApiNode(ApiNode apiNode)
 	{
 		mApiMap.put(apiNode.nodeTag(), apiNode);
 		apiNode.attachTo(this);
+		return apiNode;
+	}
+
+	public ApiNode attachApiMethod(String stApiTag, ApiMethod apiMethod)
+	{
+		ApiNode apiNode = mApiMap.get(stApiTag);
+
+		apiNode.attachApiMethod(apiMethod);
+
+		return apiNode;
 	}
 
 	public void addTokenNode(TokenNode tokenNode)
@@ -197,7 +208,7 @@ public class Requester extends Handler
 		return stReply;
 	}
 
-	public void loadApiClass(String stClassSpec)
+	public ApiInvoker loadApiInvoker(String stClassSpec) throws LibException
 	{
 		try
 		{
@@ -209,7 +220,7 @@ public class Requester extends Handler
 
 			ApiInvoker apiInvoker = (ApiInvoker) constructor.newInstance(this);
 
-			apiInvoker.invokeApi();
+			return apiInvoker;
 		}
 		catch(InstantiationException e)
 		{
@@ -493,34 +504,46 @@ public class Requester extends Handler
 	{
 		addApiNode(new ApiNode(this,"Requester"){
 			@Override
-			public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
+			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 			{
 				switch(stMethod)
 				{
-					case "invokeApi" :
+					case "loadAPI" :
 					{
 						if(!jsRequest.has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
-						try
-						{
-							String stMutinySpec = jsRequest.getJSONArray("$args").getString(0);
+						String stMutinySpec = jsRequest.getJSONArray("$args").getString(0);
 
-							Log.d("Requester", String.format("Mutiny Class Requested: %s", stMutinySpec ));
+						Log.d("Requester", String.format("Load Mutiny Class: %s", stMutinySpec ));
 
-							loadApiClass(stMutinySpec);
+						ApiInvoker apiInvoker = loadApiInvoker(stMutinySpec);
 
-							replySuccessComplete(null);
-						}
-						catch(JSONException e)
-						{
-							throw new FatalException("JSON exception invoking mutiny",e);
-						}
+						String stApiTag = apiInvoker.initAPI();
+
+						reply().put("apiTag",stApiTag);
+
+						replySuccessComplete(null);
+					}
+					break;
+
+					case "dropAPI" :
+					{
+						if(!jsRequest.has("$args"))
+							throw new HandlerException("Requester: request has no $args!");
+
+						String stApiTag = jsRequest.getJSONArray("$args").getString(0);
+
+						Log.d("Requester", String.format("Drop Mutiny API: %s", stApiTag ));
+
+						dropApi(stApiTag);
+
+						replySuccessComplete(null);
 					}
 					break;
 
 					default:
-						throw new HandlerException(String.format("Requester: unknown method: %s",stMethod));
+						throw new HandlerException("unknown method");
 
 				}
 			}

@@ -4,8 +4,9 @@ public class ApiInvoker
 {
 	final private Requester mRequester;
 
-	public void invokeApi()
+	public String initAPI()
 	{
+		return null;
 	}
 
 	protected Requester requester()
