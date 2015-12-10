@@ -99,7 +99,7 @@ public class IABFragment extends WebAppFragment implements
 				{
 					Log.d("AsyncRequester",String.format("Starting retry: %d of %d", i+1, nRetries));
 
-					if(testReplySuccessful(mAppInterface.requester().sendRequest(jsRequest)))
+					if(testReplySuccessful(mAppInterface.requester().sendRequest(jsRequest,null)))
 					{
 						Log.d("AsyncRequester", "Request completed, exit retry loop!");
 
@@ -143,7 +143,7 @@ public class IABFragment extends WebAppFragment implements
 				{
 					JSONObject jsAction = jsScriptArray.getJSONObject(i);
 
-					JSONObject jsReply = mAppInterface.requester().sendRequest(jsAction);
+					JSONObject jsReply = mAppInterface.requester().sendRequest(jsAction,null);
 
 					if(jsReply == null)
 					{

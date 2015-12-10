@@ -47,13 +47,17 @@ public class Requester extends Handler
 
 		public JSONObject mJsRequest = null, mJsReply = null;
 
-		public ApiContext(long nSequence,ApiNode apiNode, String stMethod, JSONObject jsRequest,JSONObject jsReply)
+		public ApiResultHandler mResultHandler = null;
+
+		public ApiContext(long nSequence,ApiNode apiNode, String stMethod, JSONObject jsRequest,JSONObject jsReply,
+						  ApiResultHandler resultHandler)
 		{
 			mSequence = nSequence;
 			mApiNode = apiNode;
 			mMethod = stMethod;
 			mJsRequest = jsRequest;
 			mJsReply = jsReply;
+			mResultHandler = resultHandler;
 		}
 	};
 
@@ -63,7 +67,7 @@ public class Requester extends Handler
 
 	private ArrayList<TokenNode> mTokenNodeList = new ArrayList<>();
 
-	protected Pattern mMatchNodeSpec = Pattern.compile("([^\\.]+)\\.{1}([\\d\\w\\-\\_]+)");
+	protected Pattern mMatchApiSpec = Pattern.compile("([^\\.]+)\\.{1}([\\d\\w\\-\\_]+)");
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//
@@ -193,7 +197,7 @@ public class Requester extends Handler
 
 		Log.d("Requester", "jsJsonRequest: Sending: " + stJSON);
 
-		JSONObject jsReply = sendRequest(stJSON);
+		JSONObject jsReply = sendRequest(stJSON,null);
 
 		if(jsReply != null)
 		{
@@ -246,7 +250,7 @@ public class Requester extends Handler
 
 	public Pattern matchNodeSpec()
 	{
-		return mMatchNodeSpec;
+		return mMatchApiSpec;
 	}
 
 	public Object owner()
@@ -254,13 +258,13 @@ public class Requester extends Handler
 		return mOwner;
 	}
 
-	public JSONObject apiMethodRequest(String stNodeSpec, String[] args)
+	public JSONObject apiMethodCall(String stNodeSpec, String[] args, ApiResultHandler resultHandler)
 	{
 		JSONObject jsRequest = new JSONObject();
 
 		try
 		{
-			jsRequest.put("$nodespec",stNodeSpec);
+			jsRequest.put("$apispec",stNodeSpec);
 
 			if(args != null)
 			{
@@ -276,7 +280,7 @@ public class Requester extends Handler
 		{
 			throw new FatalException("JSON exception during node method request...");
 		}
-		return sendRequest(jsRequest.toString());
+		return sendRequest(jsRequest.toString(),resultHandler);
 	}
 
 	public ApiContext apiContext()
@@ -372,12 +376,12 @@ public class Requester extends Handler
 		}
 	}
 
-	public JSONObject sendRequest(JSONObject jsRequest)
+	public JSONObject sendRequest(JSONObject jsRequest, ApiResultHandler resultHandler)
 	{
-		return sendRequest(jsRequest.toString());
+		return sendRequest(jsRequest.toString(),resultHandler);
 	}
 
-	public JSONObject sendRequest(String stJSON)
+	public JSONObject sendRequest(String stJSON, ApiResultHandler resultHandler)
 	{
 		JSONObject jsReply = new JSONObject();
 
@@ -391,14 +395,14 @@ public class Requester extends Handler
 					stLogTag = String.format("Requester:%08X:%05X:%08X",getLooper().getThread().getId(),
 						nSequence,Thread.currentThread().getId()),
 
-					stNodeSpec = jsRequest.getString("$nodespec"),
+					stApiSpec = jsRequest.getString("$apispec"),
 
 					stClassTag, stMethod = null;
 
-			Matcher matcher = mMatchNodeSpec.matcher(stNodeSpec);
+			Matcher matcher = mMatchApiSpec.matcher(stApiSpec);
 
 			if(!matcher.matches())
-				throw new HandlerException(String.format("Requester: Invalid node specification: %s",stNodeSpec));
+				throw new HandlerException(String.format("Requester: Invalid node specification: %s",stApiSpec));
 
 			stClassTag = matcher.group(1);
 			stMethod = matcher.group(2);
@@ -410,7 +414,7 @@ public class Requester extends Handler
 
 			ApiNode apiNode = mApiMap.get(stClassTag);
 
-			ApiContext apiContext = new ApiContext(nSequence,apiNode,stMethod,jsRequest,jsReply);
+			ApiContext apiContext = new ApiContext(nSequence,apiNode,stMethod,jsRequest,jsReply,resultHandler);
 
 			Message msg = obtainMessage();
 
@@ -441,6 +445,9 @@ public class Requester extends Handler
 							bReplyReady = true;
 
 							Log.d(stLogTag, "sendRequest: reply wait completed....");
+
+							if(apiContext.mResultHandler != null)
+								jsReply = apiContext.mResultHandler.fnCallback(jsReply.getString("$reply"),jsReply);
 						}
 						catch(InterruptedException e)
 						{
@@ -467,7 +474,7 @@ public class Requester extends Handler
 		}
 		catch(JSONException e)
 		{
-			e.printStackTrace();
+			throw new HandlerException("Requester: JSON error during request",e);
 		}
 		return jsReply;
 	}
@@ -491,7 +498,7 @@ public class Requester extends Handler
 
 	public void setMatchNodeSpec(Pattern pattern)
 	{
-		mMatchNodeSpec = pattern;
+		mMatchApiSpec = pattern;
 	}
 
 	public Requester(Object owner)
@@ -508,20 +515,36 @@ public class Requester extends Handler
 			{
 				switch(stMethod)
 				{
+					case "hasAPI" :
+					{
+						if(!jsRequest.has("$args"))
+							throw new HandlerException("Requester: request has no $args!");
+
+						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+
+						Log.d("Requester", String.format("Looking for API: %s", stApiSpec ));
+
+						if(mApiMap.containsKey(stApiSpec))
+							replySuccessComplete("found");
+						else
+							replySuccessComplete("notfound");
+					}
+					break;
+
 					case "loadAPI" :
 					{
 						if(!jsRequest.has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
-						String stMutinySpec = jsRequest.getJSONArray("$args").getString(0);
+						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
 
-						Log.d("Requester", String.format("Load Mutiny Class: %s", stMutinySpec ));
+						Log.d("Requester", String.format("Load Mutiny Class: %s", stApiSpec ));
 
-						ApiInvoker apiInvoker = loadApiInvoker(stMutinySpec);
+						ApiInvoker apiInvoker = loadApiInvoker(stApiSpec);
 
 						String stApiTag = apiInvoker.initAPI();
 
-						reply().put("apiTag",stApiTag);
+						reply().put("$apiTag",stApiTag);
 
 						replySuccessComplete(null);
 					}
