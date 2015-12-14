@@ -8,5 +8,5 @@ import org.json.JSONObject;
  */
 public interface ApiResultHandler
 {
-	JSONObject fnCallback(String stReply,JSONObject jsReply) throws JSONException;
+	void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException;
 }

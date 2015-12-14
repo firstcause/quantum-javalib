@@ -9,5 +9,5 @@ import org.json.JSONObject;
 abstract public class ApiCallback implements ApiResultHandler
 {
 	@Override
-	abstract public JSONObject fnCallback(String stReply, JSONObject jsReply) throws JSONException;
+	abstract public void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException;
 }

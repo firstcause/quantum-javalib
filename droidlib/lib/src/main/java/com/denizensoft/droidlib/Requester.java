@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,14 +31,21 @@ public class Requester extends Handler
 	static final public int N_RC_WARNING			= 1;
 	static final public int N_RC_WARNING_NOTFOUND	= 2;
 	static final public int N_RC_USER_CANCELLED		= 3;
+	static final public int N_IS_SYNCHRONOUS		= 1;
 
 	private final Object mOwner;
 
 	private long mRequestSequence = 0;
 
+	private ExecutorService mExecutor = null;
+
 	public class ApiContext
 	{
 		public final long mSequence;
+
+		public boolean bSynchronous = false;
+
+		public int mRC = N_RC_OK, nRetries = 0;
 
 		public String mState = "new";
 
@@ -59,6 +67,7 @@ public class Requester extends Handler
 			mJsReply = jsReply;
 			mResultHandler = resultHandler;
 		}
+
 	};
 
 	private Stack<ApiContext> mContextStack = new Stack<>();
@@ -193,22 +202,23 @@ public class Requester extends Handler
 
 	public String jsJsonRequest(String stJSON)
 	{
-		String stReply = null;
+		JSONObject jsReply = new JSONObject();
 
 		Log.d("Requester", "jsJsonRequest: Sending: " + stJSON);
 
-		JSONObject jsReply = sendRequest(stJSON,null);
-
-		if(jsReply != null)
+		sendRequest(stJSON, jsReply, new ApiResultHandler()
 		{
-			stReply = jsReply.toString();
+			@Override
+			public void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException
+			{
+				Log.d("Requester", "jsJsonRequest: callback reached...");
+			}
+		});
 
-			Log.d("Requester", "jsJsonRequest: Request complete, reply: "+stReply);
-		}
-		else
-		{
-			Log.d("Requester", "jsJsonRequest: Request cancelled!");
-		}
+		String stReply = jsReply.toString();
+
+		Log.d("Requester", "jsJsonRequest: reply: "+stReply);
+
 		return stReply;
 	}
 
@@ -258,12 +268,12 @@ public class Requester extends Handler
 		return mOwner;
 	}
 
-	public JSONObject apiMethodCall(String stNodeSpec, String[] args, ApiResultHandler resultHandler)
+	public void apiCall(String stNodeSpec, String[] args, ApiResultHandler resultHandler)
 	{
-		JSONObject jsRequest = new JSONObject();
-
 		try
 		{
+			JSONObject jsRequest = new JSONObject(), jsReply = new JSONObject();
+
 			jsRequest.put("$apispec",stNodeSpec);
 
 			if(args != null)
@@ -275,12 +285,13 @@ public class Requester extends Handler
 
 				jsRequest.put("$args",jsArgs);
 			}
+
+			sendRequest(jsRequest.toString(),jsReply,resultHandler);
 		}
 		catch(JSONException e)
 		{
 			throw new FatalException("JSON exception during node method request...");
 		}
-		return sendRequest(jsRequest.toString(),resultHandler);
 	}
 
 	public ApiContext apiContext()
@@ -293,13 +304,118 @@ public class Requester extends Handler
 		return mContextStack.peek().mApiNode;
 	}
 
+	private void execApiContext(final ApiContext apiContext)
+	{
+		try
+		{
+			String stLogTag = String.format("execApiContext:%08X:%05X",Thread.currentThread().getId(),apiContext.mSequence);
+
+			Message msg = obtainMessage();
+
+			msg.what = N_MSG_REQUEST;
+			msg.obj = apiContext;
+
+			synchronized(apiContext)
+			{
+				Log.d(stLogTag, "sending message....");
+
+				apiContext.mState = "queued";
+
+				if(!sendMessage(msg))
+					throw new HandlerException("execApiContext: send failed?!");
+
+				Log.d(stLogTag, "context queued, starting wait....");
+
+				boolean bExitWait = false;
+
+				while(!bExitWait)
+				{
+					try
+					{
+						apiContext.wait();
+
+						bExitWait = true;
+
+						Log.d(stLogTag, "reply wait completed....");
+
+						if(apiContext.mResultHandler != null)
+						{
+							Log.d(stLogTag, "invoking the callback....");
+
+							if(apiContext.bSynchronous)
+							{
+								// This bit is executed in "executor" (wait) thread
+								//
+								apiContext.mApiNode.requester().post(new ParamHelper<ApiContext>(apiContext)
+								{
+									@Override
+									public void run()
+									{
+										try
+										{
+											// So, now in here we are execute the callback in the looper context...
+											// (i.e. a "synchronous" asynchronous request...
+											//
+											if(param().mJsReply.has("$reply"))
+											{
+												param().mResultHandler.fnCallback(param().mRC,param().mJsReply.getString("$reply"),
+														param().mJsReply);
+											}
+											else
+											{
+												param().mResultHandler.fnCallback(param().mRC, null, param().mJsReply);
+											}
+										}
+										catch(JSONException e)
+										{
+											throw new HandlerException("JSON exception!",e);
+										}
+									}
+								});
+							}
+							else
+							{
+								if(apiContext.mJsReply.has("$reply"))
+								{
+									apiContext.mResultHandler.fnCallback(apiContext.mRC,apiContext.mJsReply.getString("$reply"),
+											apiContext.mJsReply);
+								}
+								else
+								{
+									apiContext.mResultHandler.fnCallback(apiContext.mRC, null, apiContext.mJsReply);
+								}
+							}
+						}
+					}
+					catch(InterruptedException e)
+					{
+						Log.d(stLogTag, "reply wait interrupted, restarting....");
+					}
+				}
+			}
+
+			// to get here the incoming apiContext must have been pushed onto the stack...
+			// ...thus, this thread must pop it off.
+			//
+			mContextStack.pop();
+
+			Log.d(stLogTag, "leaving....");
+		}
+		catch(JSONException e)
+		{
+			throw new HandlerException("Requester: JSON error during request",e);
+		}
+	}
+
 	public void replyCommit(ApiNode.ReplyCode replyCode, String stReply) throws HandlerException
 	{
 		try
 		{
 			ApiContext ac = apiContext();
 
-			String stLogTag = String.format("Requester:%08X:%05X",Thread.currentThread().getId(),ac.mSequence);
+			String
+					stLogTag = String.format("Requester:%08X:%05X",Thread.currentThread().getId(),ac.mSequence),
+					stMsg = "";
 
 			synchronized(ac)
 			{
@@ -309,10 +425,9 @@ public class Requester extends Handler
 					{
 						Log.d(stLogTag,"Committing reply with ERROR");
 
-						ac.mJsReply.put("$rc",N_RC_ERROR);
+						ac.mRC = N_RC_ERROR;
 
-						if(stReply == null)
-							stReply = "Unknown error!";
+						stMsg = "Unknown error!";
 					}
 					break;
 
@@ -320,10 +435,9 @@ public class Requester extends Handler
 					{
 						Log.d(stLogTag,"Committing reply with SUCCESS");
 
-						ac.mJsReply.put("$rc",N_RC_OK);
+						ac.mRC = N_RC_OK;
 
-						if(stReply == null)
-							stReply = "Unspecified SUCCESS!";
+						stMsg = "Unspecified SUCCESS!";
 					}
 					break;
 
@@ -331,10 +445,9 @@ public class Requester extends Handler
 					{
 						Log.d(stLogTag,"Committing reply with WARNING");
 
-						ac.mJsReply.put("$rc",N_RC_WARNING);
+						ac.mRC = N_RC_WARNING;
 
-						if(stReply == null)
-							stReply = "Unspecified WARNING!";
+						stMsg = "Unspecified WARNING!";
 					}
 					break;
 
@@ -342,10 +455,9 @@ public class Requester extends Handler
 					{
 						Log.d(stLogTag,"Committing reply with NOTFOUND");
 
-						ac.mJsReply.put("$rc", N_RC_WARNING_NOTFOUND);
+						ac.mRC = N_RC_WARNING_NOTFOUND;
 
-						if(stReply == null)
-							stReply = "Unknown NOTFOUND warning!";
+						stMsg = "Unknown NOTFOUND warning!";
 					}
 					break;
 
@@ -353,14 +465,18 @@ public class Requester extends Handler
 					{
 						Log.d(stLogTag,"Committing reply with USERCANCEL");
 
-						ac.mJsReply.put("$rc", N_RC_USER_CANCELLED);
+						ac.mRC = N_RC_USER_CANCELLED;
 
-						if(stReply == null)
-							stReply = "Unknown,was cancelled by user!";
+						stMsg = "Unknown,was cancelled by user!";
 					}
 					break;
 
 				}
+
+				ac.mJsReply.put("$rc",ac.mRC);
+
+				if(stReply == null)
+					stReply = stMsg;
 
 				if(!ac.mJsReply.has("$reply"))
 					ac.mJsReply.put("$reply",stReply);
@@ -376,15 +492,13 @@ public class Requester extends Handler
 		}
 	}
 
-	public JSONObject sendRequest(JSONObject jsRequest, ApiResultHandler resultHandler)
+	public void sendRequest(JSONObject jsRequest, JSONObject jsReply, ApiResultHandler resultHandler)
 	{
-		return sendRequest(jsRequest.toString(),resultHandler);
+		sendRequest(jsRequest.toString(),jsReply, resultHandler);
 	}
 
-	public JSONObject sendRequest(String stJSON, ApiResultHandler resultHandler)
+	public void sendRequest(String stJSON, JSONObject jsReply, ApiResultHandler resultHandler)
 	{
-		JSONObject jsReply = new JSONObject();
-
 		try
 		{
 			long nSequence = mRequestSequence++;
@@ -392,7 +506,7 @@ public class Requester extends Handler
 			JSONObject jsRequest = new JSONObject(stJSON);
 
 			String
-					stLogTag = String.format("Requester:%08X:%05X:%08X",getLooper().getThread().getId(),
+					stLogTag = String.format("sendRequest:%08X:%05X:%08X",getLooper().getThread().getId(),
 						nSequence,Thread.currentThread().getId()),
 
 					stApiSpec = jsRequest.getString("$apispec"),
@@ -409,74 +523,46 @@ public class Requester extends Handler
 
 			if(!mApiMap.containsKey(stClassTag))
 			{
-				throw new HandlerException(String.format("Undefined API class: %s", stClassTag));
+				throw new HandlerException(String.format("Unknown API class: %s", stClassTag));
 			}
 
 			ApiNode apiNode = mApiMap.get(stClassTag);
 
 			ApiContext apiContext = new ApiContext(nSequence,apiNode,stMethod,jsRequest,jsReply,resultHandler);
 
-			Message msg = obtainMessage();
-
-			msg.what = N_MSG_REQUEST;
-			msg.obj = apiContext;
-
 			if(this.getLooper().getThread().getId() != Thread.currentThread().getId())
 			{
-				synchronized(apiContext)
-				{
-					Log.d(stLogTag, "sendRequest: sending message....");
-
-					apiContext.mState = "queued";
-
-					if(!sendMessage(msg))
-						throw new HandlerException("Send failed for request message?!");
-
-					Log.d(stLogTag, "Request queued, starting wait....");
-
-					boolean bReplyReady = false;
-
-					while(!bReplyReady)
-					{
-						try
-						{
-							apiContext.wait();
-
-							bReplyReady = true;
-
-							Log.d(stLogTag, "sendRequest: reply wait completed....");
-
-							if(apiContext.mResultHandler != null)
-								jsReply = apiContext.mResultHandler.fnCallback(jsReply.getString("$reply"),jsReply);
-						}
-						catch(InterruptedException e)
-						{
-							Log.d(stLogTag, "sendRequest: reply wait interrupted, restarting....");
-						}
-					}
-				}
+				execApiContext(apiContext);
 			}
 			else
 			{
-				Log.d(stLogTag, "sendRequest: handling synchronous message....");
+				Log.d(stLogTag, "handling synchronous message....");
 
-				handleMessage(msg);
+				apiContext.bSynchronous = true;
 
-				if(!apiContext.mState.equals("done"))
+				if(mExecutor == null)
 				{
-					Log.d(stLogTag, "sendRequest: context state not done...");
+					Log.d(stLogTag, "allocating executor service....");
+
+					mExecutor = Executors.newSingleThreadExecutor();
 				}
+
+				mExecutor.execute(new ParamHelper<ApiContext>(apiContext)
+				{
+					@Override
+					public void run()
+					{
+						param().mApiNode.requester().execApiContext(param());
+					}
+				});
 			}
 
-			mContextStack.pop();
-
-			Log.d(stLogTag, "sendRequest: leaving....");
+			Log.d(stLogTag, "leaving....");
 		}
 		catch(JSONException e)
 		{
 			throw new HandlerException("Requester: JSON error during request",e);
 		}
-		return jsReply;
 	}
 
 	public void sendToken(String stToken,Bundle args)

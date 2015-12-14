@@ -117,18 +117,8 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 
 		Log.d("jsJsonRequest", "Sending request, with JSON: " + stJSON);
 
-		JSONObject jsReply = mAppInterface.requester().sendRequest(stJSON,null);
+		stReply = mAppInterface.requester().jsJsonRequest(stJSON);
 
-		if(jsReply != null)
-		{
-			stReply = jsReply.toString();
-
-			Log.d("jsJsonRequest", "Request complete, reply: "+stReply);
-		}
-		else
-		{
-			Log.d("jsJsonRequest", "Request cancelled!");
-		}
 		return stReply;
 	}
 

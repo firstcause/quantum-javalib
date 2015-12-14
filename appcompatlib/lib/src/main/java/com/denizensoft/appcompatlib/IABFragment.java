@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.View;
 import com.denizensoft.dbclient.DbException;
 import com.denizensoft.droidlib.ApiNode;
+import com.denizensoft.droidlib.ApiResultHandler;
 import com.denizensoft.droidlib.WorkItem;
 import com.denizensoft.iablib.IabHelper;
 import com.denizensoft.iablib.IabResult;
@@ -99,12 +100,12 @@ public class IABFragment extends WebAppFragment implements
 				{
 					Log.d("AsyncRequester",String.format("Starting retry: %d of %d", i+1, nRetries));
 
-					if(testReplySuccessful(mAppInterface.requester().sendRequest(jsRequest,null)))
-					{
-						Log.d("AsyncRequester", "Request completed, exit retry loop!");
-
-						return true;
-					}
+//					if(testReplySuccessful(mAppInterface.requester().sendRequest(jsRequest,null)))
+//					{
+//						Log.d("AsyncRequester", "Request completed, exit retry loop!");
+//
+//						return true;
+//					}
 
 					Thread.sleep(nInterval,0);
 				}
@@ -141,27 +142,26 @@ public class IABFragment extends WebAppFragment implements
 
 				for(int i = 0; i < jsScriptArray.length(); ++i)
 				{
-					JSONObject jsAction = jsScriptArray.getJSONObject(i);
+					JSONObject
+							jsReply = new JSONObject(),
+							jsAction = jsScriptArray.getJSONObject(i);
 
-					JSONObject jsReply = mAppInterface.requester().sendRequest(jsAction,null);
-
-					if(jsReply == null)
+					mAppInterface.requester().sendRequest(jsAction, jsReply, new ApiResultHandler()
 					{
-						s1 = String.format("Got null reply during: %s",jsAction.getString("$action"));
+						@Override
+						public void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException
+						{
+							if(jsReply.getInt("$rc") != 0)
+							{
+								String s1= String.format(Locale.US,"Got error reply: %d",nRC);
 
-						Log.e("AsyncRequester",s1);
+								Log.e("AsyncRequester",s1);
 
-						throw new LibException(s1);
-					}
-					else if(jsReply.getInt("$rc") != 0)
-					{
-						s1 = String.format(Locale.US,"Got error reply: %d, during: %s",jsReply.getInt("$rc"),
-								jsAction.getString("$action"));
+								throw new LibException(s1);
+							}
+						}
+					});
 
-						Log.e("AsyncRequester",s1);
-
-						throw new LibException(s1);
-					}
 				}
 			}
 			catch(JSONException e)
