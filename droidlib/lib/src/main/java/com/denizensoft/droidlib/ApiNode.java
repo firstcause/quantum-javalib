@@ -117,9 +117,9 @@ public class ApiNode extends TargetNode implements ResultListener
 		return mRequester;
 	}
 
-	public ApiNode(Object owner, String stClass)
+	public ApiNode(Object owner, String stApiTag)
 	{
-		super(owner,stClass);
+		super(owner,stApiTag);
 	}
 
 }

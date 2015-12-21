@@ -37,7 +37,7 @@ public class Requester extends Handler
 
 	private long mRequestSequence = 0;
 
-	private ExecutorService mExecutor = null;
+	static protected ExecutorService mExecutor = null;
 
 	public class ApiContext
 	{
@@ -72,7 +72,7 @@ public class Requester extends Handler
 
 	private Stack<ApiContext> mContextStack = new Stack<>();
 
-	private HashMap<String,ApiNode> mApiMap = new HashMap<String,ApiNode>();
+	private final HashMap<String,ApiNode> mApiMap = new HashMap<String,ApiNode>();
 
 	private ArrayList<TokenNode> mTokenNodeList = new ArrayList<>();
 
@@ -88,14 +88,12 @@ public class Requester extends Handler
 		{
 			case N_MSG_REQUEST:
 			{
-				// Remember, there is only one looper thread, it handles the request invocations,
-				// it is not possible for two threads to be here...
+				// Remember, there is only one looper thread, as far as this handler is concerned, 
+				// it handles the request invocations, it is not possible for two threads to be here...
 				//
 				ApiContext apiContext = (ApiContext) msg.obj;
 
-				String stLogTag = String.format("Requester:%08X:%05X",Thread.currentThread().getId(),apiContext.mSequence);
-
-				Log.d(stLogTag, "invoke start");
+				Log.d("Requester", "invoke start");
 
 				apiContext.mState = "invoked";
 
@@ -103,7 +101,7 @@ public class Requester extends Handler
 
 				apiContext.mApiNode.invokeMethod(apiContext.mMethod,apiContext.mJsRequest,apiContext.mJsReply);
 
-				Log.d(stLogTag, "invoke complete");
+				Log.d("Requester", "invoke complete");
 			}
 			break;
 
@@ -138,8 +136,11 @@ public class Requester extends Handler
 	//
 	public ApiNode addApiNode(ApiNode apiNode)
 	{
-		mApiMap.put(apiNode.nodeTag(), apiNode);
-		apiNode.attachTo(this);
+		synchronized(mApiMap)
+		{
+			mApiMap.put(apiNode.nodeTag(), apiNode);
+			apiNode.attachTo(this);
+		}
 		return apiNode;
 	}
 
@@ -187,8 +188,25 @@ public class Requester extends Handler
 		return mApiMap.containsKey(stClass);
 	}
 
+	protected Executor executor()
+	{
+		if(mExecutor == null)
+		{
+			Log.d("Requester", "allocating executor service....");
+
+			mExecutor = Executors.newCachedThreadPool();
+		}
+		return mExecutor;
+	}
+
 	public Context getContext()
 	{
+		Class context = Context.class;
+
+		if(context.isInstance(mOwner))
+		{
+			return (Context)mOwner;
+		}
 		return null;
 	}
 
@@ -220,42 +238,6 @@ public class Requester extends Handler
 		Log.d("Requester", "jsJsonRequest: reply: "+stReply);
 
 		return stReply;
-	}
-
-	public ApiInvoker loadApiInvoker(String stClassSpec) throws LibException
-	{
-		try
-		{
-			Log.d("Requester", String.format("Loading class: %s", stClassSpec ));
-
-			Class mutinyClass = Class.forName(stClassSpec);
-
-			Constructor constructor = mutinyClass.getConstructor(Requester.class);
-
-			ApiInvoker apiInvoker = (ApiInvoker) constructor.newInstance(this);
-
-			return apiInvoker;
-		}
-		catch(InstantiationException e)
-		{
-			throw new FatalException(String.format("Requester: Couldn't instantiate class: %s",stClassSpec),e);
-		}
-		catch(InvocationTargetException e)
-		{
-			throw new FatalException(String.format("Requester: Couldn't invoke constructor: %s",stClassSpec),e);
-		}
-		catch(NoSuchMethodException e)
-		{
-			throw new FatalException(String.format("Requester: Constructor not found? : %s",stClassSpec),e);
-		}
-		catch(IllegalAccessException e)
-		{
-			throw new FatalException(String.format("Requester: Constructor not public? : %s",stClassSpec),e);
-		}
-		catch(ClassNotFoundException e)
-		{
-			throw new FatalException(String.format("Requester: Class not found? : %s",stClassSpec),e);
-		}
 	}
 
 	public Pattern matchNodeSpec()
@@ -308,8 +290,6 @@ public class Requester extends Handler
 	{
 		try
 		{
-			String stLogTag = String.format("execApiContext:%08X:%05X",Thread.currentThread().getId(),apiContext.mSequence);
-
 			Message msg = obtainMessage();
 
 			msg.what = N_MSG_REQUEST;
@@ -317,14 +297,14 @@ public class Requester extends Handler
 
 			synchronized(apiContext)
 			{
-				Log.d(stLogTag, "sending message....");
+				Log.d("Requester", "sending message....");
 
 				apiContext.mState = "queued";
 
 				if(!sendMessage(msg))
 					throw new HandlerException("execApiContext: send failed?!");
 
-				Log.d(stLogTag, "context queued, starting wait....");
+				Log.d("Requester", "context queued, starting wait....");
 
 				boolean bExitWait = false;
 
@@ -336,11 +316,11 @@ public class Requester extends Handler
 
 						bExitWait = true;
 
-						Log.d(stLogTag, "reply wait completed....");
+						Log.d("Requester", "reply wait completed....");
 
 						if(apiContext.mResultHandler != null)
 						{
-							Log.d(stLogTag, "invoking the callback....");
+							Log.d("Requester", "invoking the callback....");
 
 							if(apiContext.bSynchronous)
 							{
@@ -389,7 +369,7 @@ public class Requester extends Handler
 					}
 					catch(InterruptedException e)
 					{
-						Log.d(stLogTag, "reply wait interrupted, restarting....");
+						Log.d("Requester", "reply wait interrupted, restarting....");
 					}
 				}
 			}
@@ -399,7 +379,7 @@ public class Requester extends Handler
 			//
 			mContextStack.pop();
 
-			Log.d(stLogTag, "leaving....");
+			Log.d("Requester", "leaving....");
 		}
 		catch(JSONException e)
 		{
@@ -413,9 +393,7 @@ public class Requester extends Handler
 		{
 			ApiContext ac = apiContext();
 
-			String
-					stLogTag = String.format("Requester:%08X:%05X",Thread.currentThread().getId(),ac.mSequence),
-					stMsg = "";
+			String stMsg = "";
 
 			synchronized(ac)
 			{
@@ -423,7 +401,7 @@ public class Requester extends Handler
 				{
 					case CRITICAL_ERROR:
 					{
-						Log.d(stLogTag,"Committing reply with ERROR");
+						Log.d("Requester","Committing reply with ERROR");
 
 						ac.mRC = N_RC_ERROR;
 
@@ -433,7 +411,7 @@ public class Requester extends Handler
 
 					case SUCCESS_REQUEST:
 					{
-						Log.d(stLogTag,"Committing reply with SUCCESS");
+						Log.d("Requester","Committing reply with SUCCESS");
 
 						ac.mRC = N_RC_OK;
 
@@ -443,7 +421,7 @@ public class Requester extends Handler
 
 					case WARNING_MESSAGE:
 					{
-						Log.d(stLogTag,"Committing reply with WARNING");
+						Log.d("Requester","Committing reply with WARNING");
 
 						ac.mRC = N_RC_WARNING;
 
@@ -453,7 +431,7 @@ public class Requester extends Handler
 
 					case WARNING_NOTFOUND:
 					{
-						Log.d(stLogTag,"Committing reply with NOTFOUND");
+						Log.d("Requester","Committing reply with NOTFOUND");
 
 						ac.mRC = N_RC_WARNING_NOTFOUND;
 
@@ -463,7 +441,7 @@ public class Requester extends Handler
 
 					case USER_CANCELLED:
 					{
-						Log.d(stLogTag,"Committing reply with USERCANCEL");
+						Log.d("Requester","Committing reply with USERCANCEL");
 
 						ac.mRC = N_RC_USER_CANCELLED;
 
@@ -506,11 +484,7 @@ public class Requester extends Handler
 			JSONObject jsRequest = new JSONObject(stJSON);
 
 			String
-					stLogTag = String.format("sendRequest:%08X:%05X:%08X",getLooper().getThread().getId(),
-						nSequence,Thread.currentThread().getId()),
-
 					stApiSpec = jsRequest.getString("$apispec"),
-
 					stClassTag, stMethod = null;
 
 			Matcher matcher = mMatchApiSpec.matcher(stApiSpec);
@@ -536,18 +510,11 @@ public class Requester extends Handler
 			}
 			else
 			{
-				Log.d(stLogTag, "handling synchronous message....");
+				Log.d("Requester", "handling synchronous message....");
 
 				apiContext.bSynchronous = true;
 
-				if(mExecutor == null)
-				{
-					Log.d(stLogTag, "allocating executor service....");
-
-					mExecutor = Executors.newSingleThreadExecutor();
-				}
-
-				mExecutor.execute(new ParamHelper<ApiContext>(apiContext)
+				executor().execute(new ParamHelper<ApiContext>(apiContext)
 				{
 					@Override
 					public void run()
@@ -557,7 +524,7 @@ public class Requester extends Handler
 				});
 			}
 
-			Log.d(stLogTag, "leaving....");
+			Log.d("Requester", "leaving....");
 		}
 		catch(JSONException e)
 		{
@@ -587,12 +554,6 @@ public class Requester extends Handler
 		mMatchApiSpec = pattern;
 	}
 
-	public Requester(Object owner)
-	{
-		mOwner = owner;
-		init();
-	}
-
 	private void init()
 	{
 		addApiNode(new ApiNode(this,"Requester"){
@@ -617,22 +578,74 @@ public class Requester extends Handler
 					}
 					break;
 
-					case "loadAPI" :
+					case "invokeTASK" :
 					{
+						boolean bAsync = true;
+
 						if(!jsRequest.has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
-						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+						String stTaskSpec = jsRequest.getJSONArray("$args").getString(0);
 
-						Log.d("Requester", String.format("Load Mutiny Class: %s", stApiSpec ));
+						Log.d("Requester", String.format("Looking for TASK: %s", stTaskSpec));
 
-						ApiInvoker apiInvoker = loadApiInvoker(stApiSpec);
+						if(jsRequest.has("$bAsynchronous"))
+							bAsync = jsRequest.getBoolean("$bAsynchronous");
 
-						String stApiTag = apiInvoker.initAPI();
+						Class taskClass = null;
 
-						reply().put("$apiTag",stApiTag);
+						try
+						{
+							taskClass = Class.forName(stTaskSpec);
 
-						replySuccessComplete(null);
+							Constructor constructor = taskClass.getConstructor(Requester.class,JSONObject.class);
+
+							Object obj = constructor.newInstance(this,jsRequest);
+
+							Class apiTaskClass = Class.forName("ApiTask");
+
+							if(!apiTaskClass.isInstance(obj))
+							{
+								replyCriticalError(String.format("Class: %s, is not an extension of API task...",stTaskSpec));
+							}
+							else
+							{
+								ApiTask apiTask = (ApiTask)obj;
+
+								if(bAsync)
+								{
+									// Post on a new thread...
+									//
+									executor().execute(apiTask);
+								}
+								else
+								{
+									post(apiTask);
+								}
+
+								replySuccessComplete(null);
+							}
+						}
+						catch(ClassNotFoundException e)
+						{
+							replyCriticalError(String.format("Class not found: %s",e.getMessage()));
+						}
+						catch(NoSuchMethodException e)
+						{
+							replyCriticalError(String.format("Constructor not found: %s",e.getMessage()));
+						}
+						catch(IllegalAccessException e)
+						{
+							replyCriticalError(String.format("Constructor not public? : %s",e.getMessage()));
+						}
+						catch(InstantiationException e)
+						{
+							replyCriticalError(String.format("Constructor/Class not available? : %s",e.getMessage()));
+						}
+						catch(InvocationTargetException e)
+						{
+							e.printStackTrace();
+						}
 					}
 					break;
 
@@ -659,10 +672,16 @@ public class Requester extends Handler
 		});
 	}
 
-	public Requester(Looper looper, Object mOwner)
+	public Requester(Object owner)
+	{
+		mOwner = owner;
+		init();
+	}
+
+	public Requester(Looper looper, Object owner)
 	{
 		super(looper);
-		this.mOwner = mOwner;
+		mOwner = owner;
 		init();
 	}
 }
