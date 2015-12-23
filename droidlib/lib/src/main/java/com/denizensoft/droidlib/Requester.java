@@ -172,6 +172,25 @@ public class Requester extends Handler
 		dropApi(apiNode.nodeTag());
 	}
 
+	public void dropOwnedNodes(Object owner)
+	{
+		Iterator<TokenNode> i1 = mTokenNodeList.iterator();
+
+		while(i1.hasNext())
+		{
+			if(i1.next().nodeOwner().equals(owner))
+				i1.remove();
+		}
+
+		Iterator<Map.Entry<String,ApiNode>> i2 = mApiMap.entrySet().iterator();
+
+		while(i2.hasNext())
+		{
+			if(i2.next().getValue().nodeOwner().equals(owner))
+				i2.remove();
+		}
+	}
+
 	public boolean hasApi(String stClass)
 	{
 		return mApiMap.containsKey(stClass);

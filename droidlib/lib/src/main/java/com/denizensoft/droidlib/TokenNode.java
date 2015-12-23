@@ -23,19 +23,19 @@ public class TokenNode extends TargetNode
 
 	public TokenNode(Object owner)
 	{
-		super(owner,null);
+		super(owner);
 		this.rxCategorySpec = Pattern.compile("((.*))");
 	}
 
 	public TokenNode(Object owner,Pattern rxCategorySpec)
 	{
-		super(owner,null);
+		super(owner);
 		this.rxCategorySpec = rxCategorySpec;
 	}
 
 	public TokenNode(Object owner,String stCategorySpec)
 	{
-		super(owner,null);
+		super(owner);
 		rxCategorySpec = Pattern.compile(stCategorySpec);
 	}
 }
