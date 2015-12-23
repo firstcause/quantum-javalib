@@ -42,7 +42,7 @@ public class AppFragment extends Fragment implements Observer,ResultListener
 
 		mAppInterface = (AppActivity)view.getContext();
 
-		mAppInterface.requester().addApiNode(new ApiNode(this,"appfragment"){
+		mAppInterface.requester().attachApiNode("AppFragment",new ApiNode(this){
 
 			@Override
 			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException

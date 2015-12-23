@@ -31,7 +31,7 @@ abstract public class DbClientFragment extends AppFragment
 	{
 		super.onViewCreated(view, savedInstanceState);
 
-		mAppInterface.requester().addApiNode(new ApiNode(this,"dbclient"){
+		mAppInterface.requester().attachApiNode("dbclient",new ApiNode(this){
 			@Override
 			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 			{

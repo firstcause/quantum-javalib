@@ -192,7 +192,7 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 		webSettings.setBuiltInZoomControls(false);
 		webSettings.setSupportZoom(true);
 
-		mAppInterface.requester().addApiNode(new ApiNode(this,"WebView"))
+		mAppInterface.requester().attachApiNode("WebView",new ApiNode(this))
 				.attachApiMethod(new ApiMethod("loadPage"){
 					@Override
 					public void callback(ApiNode apiNode, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException

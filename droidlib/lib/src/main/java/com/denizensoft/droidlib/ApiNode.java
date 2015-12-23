@@ -69,8 +69,11 @@ public class ApiNode extends TargetNode implements ResultListener
 	//
 	// public API
 	//
-	public void attachTo(Requester requester)
+	public void attachedTo(Requester requester,String stApiTag)
 	{
+		if(stApiTag != null)
+			setTag(stApiTag);
+
 		mRequester = requester;
 	}
 
@@ -117,9 +120,13 @@ public class ApiNode extends TargetNode implements ResultListener
 		return mRequester;
 	}
 
-	public ApiNode(Object owner, String stApiTag)
+	public ApiNode()
 	{
-		super(owner,stApiTag);
+	}
+
+	public ApiNode(Object owner)
+	{
+		super(owner);
 	}
 
 }

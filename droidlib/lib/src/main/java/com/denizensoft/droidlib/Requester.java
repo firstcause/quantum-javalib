@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import com.denizensoft.jlib.CriticalException;
 import com.denizensoft.jlib.FatalException;
 import com.denizensoft.jlib.LibException;
 import com.denizensoft.jlib.NotFoundException;
@@ -134,12 +135,12 @@ public class Requester extends Handler
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//
 	//
-	public ApiNode addApiNode(ApiNode apiNode)
+	public ApiNode attachApiNode(String stApiTag, ApiNode apiNode)
 	{
 		synchronized(mApiMap)
 		{
+			apiNode.attachedTo(this,stApiTag);
 			mApiMap.put(apiNode.nodeTag(), apiNode);
-			apiNode.attachTo(this);
 		}
 		return apiNode;
 	}
@@ -158,29 +159,17 @@ public class Requester extends Handler
 		mTokenNodeList.add(tokenNode);
 	}
 
-	public void dropApi(String stClass)
+	public void dropApi(String stApiTag)
 	{
-		if(mApiMap.containsKey(stClass))
-			mApiMap.remove(stClass);
+		synchronized(mApiMap){
+			if(mApiMap.containsKey(stApiTag))
+				mApiMap.remove(stApiTag);
+		}
 	}
 
-	public void dropOwnedNodes(Object owner)
+	public void dropApiNode(ApiNode apiNode)
 	{
-		Iterator<TokenNode> i1 = mTokenNodeList.iterator();
-
-		while(i1.hasNext())
-		{
-			if(i1.next().nodeOwner().equals(owner))
-				i1.remove();
-		}
-
-		Iterator<Map.Entry<String,ApiNode>> i2 = mApiMap.entrySet().iterator();
-
-		while(i2.hasNext())
-		{
-			if(i2.next().getValue().nodeOwner().equals(owner))
-				i2.remove();
-		}
+		dropApi(apiNode.nodeTag());
 	}
 
 	public boolean hasApi(String stClass)
@@ -554,9 +543,51 @@ public class Requester extends Handler
 		mMatchApiSpec = pattern;
 	}
 
+	protected ApiTask loadApiTask(String stTaskSpec)
+	{
+		Log.d("Requester", String.format("Looking for TASK: %s", stTaskSpec));
+
+		try
+		{
+			Class specClass = Class.forName(stTaskSpec);
+
+			Constructor constructor = specClass.getConstructor(Requester.class);
+
+			Object obj = constructor.newInstance(this);
+
+			Class apiTaskClass = Class.forName("ApiTask");
+
+			if(!apiTaskClass.isInstance(obj))
+			{
+				throw new CriticalException(String.format("Class: %s, is not an extension of API task...",stTaskSpec));
+			}
+			return(ApiTask)obj;
+		}
+		catch(ClassNotFoundException e)
+		{
+			throw new CriticalException(String.format("Class not found: %s",e.getMessage()));
+		}
+		catch(NoSuchMethodException e)
+		{
+			throw new CriticalException(String.format("Constructor not found: %s",e.getMessage()));
+		}
+		catch(IllegalAccessException e)
+		{
+			throw new CriticalException(String.format("Constructor not public? : %s",e.getMessage()));
+		}
+		catch(InstantiationException e)
+		{
+			throw new CriticalException(String.format("Constructor/Class not available? : %s",e.getMessage()));
+		}
+		catch(InvocationTargetException e)
+		{
+			throw new CriticalException(String.format("Invocation target error? : %s",e.getMessage()));
+		}
+	}
+
 	private void init()
 	{
-		addApiNode(new ApiNode(this,"Requester"){
+		attachApiNode("Requester", new ApiNode(this){
 			@Override
 			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 			{
@@ -587,64 +618,48 @@ public class Requester extends Handler
 
 						String stTaskSpec = jsRequest.getJSONArray("$args").getString(0);
 
-						Log.d("Requester", String.format("Looking for TASK: %s", stTaskSpec));
+						if(jsRequest.has("$bAsynchronous"))
+							bAsync = jsRequest.getBoolean("$bAsynchronous");
+
+						ApiTask apiTask = requester().loadApiTask(stTaskSpec);
+
+						if(bAsync)
+						{
+							// Post on a new thread...
+							//
+							executor().execute(apiTask);
+						}
+						else
+						{
+							post(apiTask);
+						}
+						replySuccessComplete(null);
+					}
+					break;
+
+					case "loadAPI" :
+					{
+						boolean bAsync = true;
+
+						if(!jsRequest.has("$args"))
+							throw new HandlerException("Requester: request has no $args!");
+
+						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
 
 						if(jsRequest.has("$bAsynchronous"))
 							bAsync = jsRequest.getBoolean("$bAsynchronous");
 
-						Class taskClass = null;
+						ApiTask apiTask = requester().loadApiTask(stApiSpec);
 
-						try
+						if(bAsync)
 						{
-							taskClass = Class.forName(stTaskSpec);
-
-							Constructor constructor = taskClass.getConstructor(Requester.class,JSONObject.class);
-
-							Object obj = constructor.newInstance(this,jsRequest);
-
-							Class apiTaskClass = Class.forName("ApiTask");
-
-							if(!apiTaskClass.isInstance(obj))
-							{
-								replyCriticalError(String.format("Class: %s, is not an extension of API task...",stTaskSpec));
-							}
-							else
-							{
-								ApiTask apiTask = (ApiTask)obj;
-
-								if(bAsync)
-								{
-									// Post on a new thread...
-									//
-									executor().execute(apiTask);
-								}
-								else
-								{
-									post(apiTask);
-								}
-
-								replySuccessComplete(null);
-							}
+							// Post on a new thread...
+							//
+							executor().execute(apiTask);
 						}
-						catch(ClassNotFoundException e)
+						else
 						{
-							replyCriticalError(String.format("Class not found: %s",e.getMessage()));
-						}
-						catch(NoSuchMethodException e)
-						{
-							replyCriticalError(String.format("Constructor not found: %s",e.getMessage()));
-						}
-						catch(IllegalAccessException e)
-						{
-							replyCriticalError(String.format("Constructor not public? : %s",e.getMessage()));
-						}
-						catch(InstantiationException e)
-						{
-							replyCriticalError(String.format("Constructor/Class not available? : %s",e.getMessage()));
-						}
-						catch(InvocationTargetException e)
-						{
-							e.printStackTrace();
+							post(apiTask);
 						}
 					}
 					break;

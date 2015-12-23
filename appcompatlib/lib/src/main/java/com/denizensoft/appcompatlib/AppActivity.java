@@ -307,7 +307,7 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 
 	public AppActivity()
 	{
-		requester().addApiNode(new ApiNode(this,"AppActivity"){
+		requester().attachApiNode("AppActivity",new ApiNode(this){
 			@Override
 			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
 			{

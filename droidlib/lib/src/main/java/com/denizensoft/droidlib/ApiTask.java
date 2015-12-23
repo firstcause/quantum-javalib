@@ -5,21 +5,21 @@ package com.denizensoft.droidlib;
  */
 public abstract class ApiTask implements Runnable
 {
-	private long mOwnerThreadId = 0;
+	private long mTaskThreadId = 0;
 
 	final protected Requester mRequester;
 
 	abstract protected void invokeTask();
 
-	public long ownerThreadId()
+	public long taskThreadId()
 	{
-		return mOwnerThreadId;
+		return mTaskThreadId;
 	}
 
 	@Override
 	final public void run()
 	{
-		mOwnerThreadId = Thread.currentThread().getId();
+		mTaskThreadId = Thread.currentThread().getId();
 		invokeTask();
 	}
 

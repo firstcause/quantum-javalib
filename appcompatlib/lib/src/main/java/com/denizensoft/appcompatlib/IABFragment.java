@@ -259,7 +259,7 @@ public class IABFragment extends WebAppFragment implements
 
 			mWebView.addJavascriptInterface(this, "APPAPI");
 
-			mAppInterface.requester().addApiNode(new ApiNode(this,"iab"){
+			mAppInterface.requester().attachApiNode("iab",new ApiNode(this){
 
 				@Override
 				public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
