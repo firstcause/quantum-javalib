@@ -12,15 +12,6 @@ else
 	arg4=$4
 fi
 
-if [[ "$arg1" = "clearcache" ]];
-then
-	echo Clearing the cache...
-	find . -name "libraries" -type d -exec rm -frv "{}/*.xml" \;
-	find . -name "build" -type d -exec rm -frv "{}" \;
-	find ~/.gradle/ -name "com.denizensoft*" -type d -exec rm -frv "{}" \;
-	exit 0
-fi 
-
 pushd droidlib
 gradle --daemon --refresh-dependencies $arg1 $arg2 $arg3 $arg4
 

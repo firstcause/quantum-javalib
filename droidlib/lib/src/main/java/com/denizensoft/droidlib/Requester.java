@@ -259,7 +259,7 @@ public class Requester extends Handler
 		return mOwner;
 	}
 
-	public void apiCall(String stNodeSpec, String[] args, ApiResultHandler resultHandler)
+	public JSONObject callAPI(String stNodeSpec, String[] args)
 	{
 		try
 		{
@@ -277,7 +277,35 @@ public class Requester extends Handler
 				jsRequest.put("$args",jsArgs);
 			}
 
-			sendRequest(jsRequest.toString(),jsReply,resultHandler);
+			sendRequest(jsRequest.toString(),jsReply,null);
+
+			return jsReply;
+		}
+		catch(JSONException e)
+		{
+			throw new FatalException("JSON exception during node method request...");
+		}
+	}
+
+	public void callAPI(String stNodeSpec, String[] args, Handler replyTo, ApiResultHandler resultHandler)
+	{
+		try
+		{
+			JSONObject jsRequest = new JSONObject(), jsReply = new JSONObject();
+
+			jsRequest.put("$apispec",stNodeSpec);
+
+			if(args != null)
+			{
+				JSONArray jsArgs = new JSONArray();
+
+				for(String s1 : args)
+					jsArgs.put(s1);
+
+				jsRequest.put("$args",jsArgs);
+			}
+
+			postRequest(replyTo, jsRequest.toString(),resultHandler);
 		}
 		catch(JSONException e)
 		{
@@ -501,25 +529,14 @@ public class Requester extends Handler
 	{
 		ApiContext apiContext = prepareContext(this,stJSON,jsReply,resultHandler);
 
-		if(getLooper().getThread().getId() != Thread.currentThread().getId())
-		{
-			execApiContext(apiContext);
-		}
-		else
-		{
-			Log.d("Requester", "posting synchronous message handler....");
+		if(Thread.currentThread().getId() == getLooper().getThread().getId())
+			throw new HandlerException("Requester: dead-lock condition, current thread cannot send on this requester!");
 
-			executor().execute(new ParamHelper<ApiContext>(apiContext)
-			{
-				@Override
-				public void run()
-				{
-					param().mApiNode.requester().execApiContext(param());
-				}
-			});
-		}
+		Log.d("Requester", "Sending synchronous request...");
 
-		Log.d("Requester", "leaving....");
+		// This way, the calling thread can go into execApiContext and wait
+		//
+		execApiContext(apiContext);
 	}
 
 	public void postRequest(Handler replyTo, String stJSON, ApiResultHandler resultHandler)
@@ -529,15 +546,13 @@ public class Requester extends Handler
 		Log.d("Requester", "posting asynchronous request...");
 
 		executor().execute(new ParamHelper<ApiContext>(apiContext)
+		{
+			@Override
+			public void run()
 			{
-				@Override
-				public void run()
-				{
-					param().mApiNode.requester().execApiContext(param());
-				}
-			});
-
-		Log.d("Requester", "leaving....");
+				param().mApiNode.requester().execApiContext(param());
+			}
+		});
 	}
 
 	public void sendToken(String stToken,Bundle args)
