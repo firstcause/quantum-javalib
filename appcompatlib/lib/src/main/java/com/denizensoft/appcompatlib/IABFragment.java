@@ -6,7 +6,7 @@ import android.util.Log;
 import android.view.View;
 import com.denizensoft.dbclient.DbException;
 import com.denizensoft.droidlib.ApiNode;
-import com.denizensoft.droidlib.ApiResultHandler;
+import com.denizensoft.droidlib.ApiCallback;
 import com.denizensoft.droidlib.WorkItem;
 import com.denizensoft.iablib.IabHelper;
 import com.denizensoft.iablib.IabResult;
@@ -142,25 +142,24 @@ public class IABFragment extends WebAppFragment implements
 
 				for(int i = 0; i < jsScriptArray.length(); ++i)
 				{
-					JSONObject
-							jsReply = new JSONObject(),
-							jsAction = jsScriptArray.getJSONObject(i);
+					JSONObject jsAction = jsScriptArray.getJSONObject(i);
 
-					mAppInterface.requester().sendRequest(jsAction, jsReply, new ApiResultHandler()
-					{
-						@Override
-						public void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException
-						{
-							if(jsReply.getInt("$rc") != 0)
-							{
-								String s1= String.format(Locale.US,"Got error reply: %d",nRC);
+					mAppInterface.requester().postRequest(mAppInterface.requester(), jsAction.toString(),
+							new ApiCallback()
+								{
+									@Override
+									public void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException
+									{
+										if(jsReply.getInt("$rc") != 0)
+										{
+											String s1= String.format(Locale.US,"Got error reply: %d",nRC);
 
-								Log.e("AsyncRequester",s1);
+											Log.e("AsyncRequester",s1);
 
-								throw new LibException(s1);
-							}
-						}
-					});
+											throw new LibException(s1);
+										}
+									}
+								});
 
 				}
 			}

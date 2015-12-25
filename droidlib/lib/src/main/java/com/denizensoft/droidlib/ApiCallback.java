@@ -6,7 +6,7 @@ import org.json.JSONObject;
 /**
  * Created by sjm on 12/9/15.
  */
-public interface ApiResultHandler
+public interface ApiCallback
 {
 	void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException;
 }

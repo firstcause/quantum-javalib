@@ -56,10 +56,10 @@ public class Requester extends Handler
 
 		public Handler mReplyTo = null;
 
-		public ApiResultHandler mResultHandler = null;
+		public ApiCallback mResultHandler = null;
 
 		public ApiContext(Handler replyTo, ApiNode apiNode, String stMethod, JSONObject jsRequest,JSONObject jsReply,
-						  ApiResultHandler resultHandler)
+						  ApiCallback resultHandler)
 		{
 			mSequenceNo = ++Requester.nRequestSequence;
 			mReplyTo = replyTo;
@@ -229,18 +229,9 @@ public class Requester extends Handler
 
 	public String jsJsonRequest(String stJSON)
 	{
-		JSONObject jsReply = new JSONObject();
-
 		Log.d("Requester", "jsJsonRequest: Sending: " + stJSON);
 
-		sendRequest(stJSON, jsReply, new ApiResultHandler()
-		{
-			@Override
-			public void fnCallback(int nRC, String stReply, JSONObject jsReply) throws JSONException
-			{
-				Log.d("Requester", "jsJsonRequest: callback reached...");
-			}
-		});
+		JSONObject jsReply = sendRequest(stJSON);
 
 		String stReply = jsReply.toString();
 
@@ -263,7 +254,7 @@ public class Requester extends Handler
 	{
 		try
 		{
-			JSONObject jsRequest = new JSONObject(), jsReply = new JSONObject();
+			JSONObject jsRequest = new JSONObject();
 
 			jsRequest.put("$apispec",stNodeSpec);
 
@@ -277,7 +268,7 @@ public class Requester extends Handler
 				jsRequest.put("$args",jsArgs);
 			}
 
-			sendRequest(jsRequest.toString(),jsReply,null);
+			JSONObject jsReply = sendRequest(jsRequest.toString());
 
 			return jsReply;
 		}
@@ -287,11 +278,11 @@ public class Requester extends Handler
 		}
 	}
 
-	public void callAPI(String stNodeSpec, String[] args, Handler replyTo, ApiResultHandler resultHandler)
+	public void callAPI(String stNodeSpec, String[] args, Handler replyTo, ApiCallback resultHandler)
 	{
 		try
 		{
-			JSONObject jsRequest = new JSONObject(), jsReply = new JSONObject();
+			JSONObject jsRequest = new JSONObject();
 
 			jsRequest.put("$apispec",stNodeSpec);
 
@@ -402,7 +393,7 @@ public class Requester extends Handler
 		Log.d("Requester", "leaving....");
 	}
 
-	private ApiContext prepareContext(Handler replyTo, String stJSON, JSONObject jsReply, ApiResultHandler resultHandler)
+	private ApiContext prepareContext(Handler replyTo, String stJSON, JSONObject jsReply, ApiCallback resultHandler)
 	{
 		try
 		{
@@ -520,26 +511,30 @@ public class Requester extends Handler
 		}
 	}
 
-	public void sendRequest(JSONObject jsRequest, JSONObject jsReply, ApiResultHandler resultHandler)
+	public void sendRequest(JSONObject jsRequest)
 	{
-		sendRequest(jsRequest.toString(),jsReply, resultHandler);
+		sendRequest(jsRequest.toString());
 	}
 
-	public void sendRequest(String stJSON, JSONObject jsReply, ApiResultHandler resultHandler)
+	public JSONObject sendRequest(String stJSON)
 	{
-		ApiContext apiContext = prepareContext(this,stJSON,jsReply,resultHandler);
-
 		if(Thread.currentThread().getId() == getLooper().getThread().getId())
 			throw new HandlerException("Requester: dead-lock condition, current thread cannot send on this requester!");
+
+		JSONObject jsReply = new JSONObject();
+
+		ApiContext apiContext = prepareContext(null,stJSON,jsReply,null);
 
 		Log.d("Requester", "Sending synchronous request...");
 
 		// This way, the calling thread can go into execApiContext and wait
 		//
 		execApiContext(apiContext);
+
+		return jsReply;
 	}
 
-	public void postRequest(Handler replyTo, String stJSON, ApiResultHandler resultHandler)
+	public void postRequest(Handler replyTo, String stJSON, ApiCallback resultHandler)
 	{
 		ApiContext apiContext = prepareContext(replyTo,stJSON,null,resultHandler);
 
@@ -589,9 +584,7 @@ public class Requester extends Handler
 
 			Object obj = constructor.newInstance(this);
 
-			Class apiTaskClass = Class.forName("ApiTask");
-
-			if(!apiTaskClass.isInstance(obj))
+			if(!ApiTask.class.isInstance(obj))
 			{
 				throw new CriticalException(String.format("Class: %s, is not an extension of API task...",stTaskSpec));
 			}
@@ -673,28 +666,14 @@ public class Requester extends Handler
 
 					case "loadAPI" :
 					{
-						boolean bAsync = true;
-
 						if(!jsRequest.has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
 						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
 
-						if(jsRequest.has("$bAsynchronous"))
-							bAsync = jsRequest.getBoolean("$bAsynchronous");
-
 						ApiTask apiTask = requester().loadApiTask(stApiSpec);
 
-						if(bAsync)
-						{
-							// Post on a new thread...
-							//
-							executor().execute(apiTask);
-						}
-						else
-						{
-							post(apiTask);
-						}
+						post(apiTask);
 					}
 					break;
 
