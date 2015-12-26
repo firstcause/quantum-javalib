@@ -22,9 +22,9 @@ public class ApiMethod
 		return mMethodTag;
 	}
 
-	public ApiMethod(String mMethodTag)
+	public ApiMethod(String stMethodTag)
 	{
-		this.mMethodTag = mMethodTag;
+		this.mMethodTag = stMethodTag;
 	}
 }
 
