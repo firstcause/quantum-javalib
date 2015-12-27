@@ -10,7 +10,6 @@ import android.widget.Toast;
 import com.denizensoft.droidlib.*;
 import com.denizensoft.jlib.LibException;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.Observable;
 import java.util.Observer;
@@ -42,43 +41,37 @@ public class AppFragment extends Fragment implements Observer,ResultListener
 
 		mAppInterface = (AppActivity)view.getContext();
 
-		mAppInterface.requester().attachApiNode("AppFragment",new ApiNode(this){
-
-			@Override
-			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
-			{
-				switch(stMethod.substring(1))
+		mAppInterface.requester().attachApiNode("AppFragment",new ApiNode(this)
+				.attachApiMethod("showToast", new ApiMethod()
 				{
-					case "show-toast" :
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
 					{
 						String stMessage = null;
 						try
 						{
-							stMessage = jsRequest.getString("$message");
+							stMessage = ac.request().getString("$message");
 
 							Toast.makeText(mAppInterface.appContext(), stMessage, Toast.LENGTH_LONG).show();
 
-							replySuccessComplete(null);
+							ac.replySuccessComplete(null);
 						}
 						catch(JSONException e)
 						{
 							throw new HandlerException(String.format("JSON exception during: %s",e.getMessage()));
 						}
-
 					}
-					break;
-
-					case "restart-activity" :
+				})
+				.attachApiMethod("restartActivity", new ApiMethod()
+				{
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
 					{
 						mAppInterface.restartActivity();
 
-						replySuccessComplete(null);
+						ac.replySuccessComplete(null);
 					}
-					break;
-
-				}
-			}
-		});
+				}));
 	}
 	
 	@Override

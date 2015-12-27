@@ -16,15 +16,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Patterns;
 import com.denizensoft.dbclient.DbClient;
-import com.denizensoft.droidlib.ApiNode;
-import com.denizensoft.droidlib.Requester;
-import com.denizensoft.droidlib.ResultListener;
-import com.denizensoft.droidlib.UpdateNotifier;
+import com.denizensoft.droidlib.*;
 import com.denizensoft.jlib.FatalException;
 import com.denizensoft.jlib.LibException;
-import com.denizensoft.jlib.NotFoundException;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -307,45 +302,39 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 
 	public AppActivity()
 	{
-		requester().attachApiNode("AppActivity",new ApiNode(this){
-			@Override
-			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
+		requester().attachApiNode("AppActivity",new ApiNode(this)
+			.attachApiMethod("addApiResultListener", new ApiMethod()
 			{
-				switch(stMethod)
+				@Override
+				public void func(ApiContext ac) throws JSONException, LibException
 				{
-					case "addApiResultListener" :
-					{
-						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+					String stApiSpec = ac.request().getJSONArray("$args").getString(0);
 
-						Log.d("AppActivity", String.format("Adding API result listener: %s",stApiSpec));
+					Log.d("AppActivity", String.format("Adding API result listener: %s",stApiSpec));
 
-						ApiNode node = requester().getApiRef(stApiSpec);
+					ApiNode node = requester().getApiRef(stApiSpec);
 
-						appAddResultListener(node);
+					appAddResultListener(node);
 
-						replySuccessComplete(null);
-					}
-					break;
-
-					case "dropApiResultListener" :
-					{
-						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
-
-						Log.d("AppActivity", String.format("Dropping result listener: %s",stApiSpec));
-
-						ApiNode node = requester().getApiRef(stApiSpec);
-
-						appDropResultListener(node);
-
-						replySuccessComplete(null);
-					}
-					break;
-
-					default:
-						throw new NotFoundException(String.format("unknown method: %s",stMethod));
-
+					ac.replySuccessComplete(null);
 				}
-			}
-		});
+			})
+			.attachApiMethod("dropApiResultListener", new ApiMethod()
+			{
+				@Override
+				public void func(ApiContext ac) throws JSONException, LibException
+				{
+					String stApiSpec = ac.request().getJSONArray("$args").getString(0);
+
+					Log.d("AppActivity", String.format("Dropping result listener: %s",stApiSpec));
+
+					ApiNode node = requester().getApiRef(stApiSpec);
+
+					appDropResultListener(node);
+
+					ac.replySuccessComplete(null);
+				}
+			})
+		);
 	}
 }

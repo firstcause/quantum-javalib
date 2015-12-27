@@ -3,11 +3,11 @@ package com.denizensoft.droidlib;
 public class ApiInvoker extends ApiTask
 {
 	@Override
-	protected void invokeTask()
+	protected void taskFunc()
 	{
 		// complete the request...
 		//
-		requester().apiNode().replySuccessComplete(null);
+		requester().apiContext().replySuccessComplete(null);
 	}
 
 	public ApiInvoker(Requester requester)

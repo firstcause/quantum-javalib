@@ -3,8 +3,6 @@ package com.denizensoft.droidlib;
 import android.content.Intent;
 import com.denizensoft.jlib.FatalException;
 import com.denizensoft.jlib.LibException;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.HashMap;
 
@@ -14,15 +12,6 @@ import java.util.HashMap;
  */
 public class ApiNode extends TargetNode implements ResultListener
 {
-	static public enum ReplyCode
-	{
-		CRITICAL_ERROR,
-		SUCCESS_REQUEST,
-		WARNING_MESSAGE,
-		WARNING_NOTFOUND,
-		USER_CANCELLED
-	}
-
 	HashMap<String,ApiMethod> mMethodMap = null;
 
 	private Requester mRequester = null;
@@ -37,32 +26,22 @@ public class ApiNode extends TargetNode implements ResultListener
 		return false;
 	}
 
-	public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
+	public ApiMethod getMethod(String stMethod)
 	{
-		throw new HandlerException("ApiNode: undefined builtins handler function!");
-	}
+		ApiMethod apiMethod = null;
 
-	final public void invokeMethod(String stMethod, JSONObject jsRequest, JSONObject jsReply)
-	{
 		try
 		{
 			if(mMethodMap != null && mMethodMap.containsKey(stMethod))
 			{
-				mMethodMap.get(stMethod).callback(this,jsRequest,jsReply);
-			}
-			else
-			{
-				builtins(stMethod,jsRequest,jsReply);
+				apiMethod = mMethodMap.get(stMethod);
 			}
 		}
 		catch(LibException e)
 		{
 			throw new FatalException(String.format("ApiNode:%s.%s error: %s",nodeTag(),stMethod,e.getMessage()));
 		}
-		catch(JSONException e)
-		{
-			throw new FatalException(String.format("ApiNode:%s.%s: JSON error: %s",nodeTag(),stMethod,e.getMessage()));
-		}
+		return apiMethod;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -77,42 +56,14 @@ public class ApiNode extends TargetNode implements ResultListener
 		mRequester = requester;
 	}
 
-	public void attachApiMethod(ApiMethod apiMethod)
+	public ApiNode attachApiMethod(String stMethodTag, ApiMethod apiMethod)
 	{
 		if(mMethodMap == null)
 			mMethodMap = new HashMap<>();
 
-		mMethodMap.put(apiMethod.methodTag(),apiMethod);
-	}
+		mMethodMap.put(stMethodTag,apiMethod);
 
-	public String method()
-	{
-		return mRequester.apiContext().mMethod;
-	}
-
-	public JSONObject reply()
-	{
-		return mRequester.apiContext().mJsReply;
-	}
-
-	public void replyCommit(ReplyCode replyCode, String stReply) throws HandlerException
-	{
-		mRequester.replyCommit(replyCode,stReply);
-	}
-
-	public void replyCriticalError(String stReply)
-	{
-		replyCommit(ReplyCode.CRITICAL_ERROR,stReply);
-	}
-
-	public void replySuccessComplete(String stReply)
-	{
-		replyCommit(ReplyCode.SUCCESS_REQUEST,stReply);
-	}
-
-	public JSONObject request()
-	{
-		return mRequester.apiContext().mJsRequest;
+		return this;
 	}
 
 	public Requester requester()

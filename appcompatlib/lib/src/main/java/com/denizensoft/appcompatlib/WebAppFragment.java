@@ -10,7 +10,6 @@ import com.denizensoft.droidlib.*;
 import com.denizensoft.jlib.LibException;
 import com.denizensoft.jlib.Tempus;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.TimeZone;
 
@@ -192,16 +191,18 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 		webSettings.setBuiltInZoomControls(false);
 		webSettings.setSupportZoom(true);
 
-		mAppInterface.requester().attachApiNode("WebView",new ApiNode(this))
-				.attachApiMethod(new ApiMethod("loadPage"){
-					@Override
-					public void callback(ApiNode apiNode, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
+		mAppInterface.requester().attachApiNode("WebView",new ApiNode(this)
+				.attachApiMethod("loadURL", new ApiMethod()
 					{
-						String stPageSpec = String.format("%s/%s",stHtmlFolder,jsRequest.getString("$pagespec"));
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							String stPageSpec = String.format("%s/%s",stHtmlFolder,ac.request().getString("$pagespec"));
 
-						webView().loadUrl(stPageSpec);
-					};
-				});
+							webView().loadUrl(stPageSpec);
+						}
+					})
+		);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////

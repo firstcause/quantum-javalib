@@ -6,7 +6,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
-import com.denizensoft.jlib.CriticalException;
 import com.denizensoft.jlib.FatalException;
 import com.denizensoft.jlib.LibException;
 import com.denizensoft.jlib.NotFoundException;
@@ -14,10 +13,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,14 +24,7 @@ public class Requester extends Handler
 {
 	private static final int N_APP_MESSAGE			= 0xDEADBEEF;
 	private static final int N_MSG_REQUEST 			= ( N_APP_MESSAGE + 1 );
-	private static final int N_MSG_ASYNC_REQUEST	= ( N_APP_MESSAGE + 2 );
-	private static final int N_MSG_TOKEN 			= ( N_APP_MESSAGE + 3 );
-
-	static final public int N_RC_ERROR				= -1;
-	static final public int N_RC_OK					= 0;
-	static final public int N_RC_WARNING			= 1;
-	static final public int N_RC_WARNING_NOTFOUND	= 2;
-	static final public int N_RC_USER_CANCELLED		= 3;
+	private static final int N_MSG_TOKEN 			= ( N_APP_MESSAGE + 2 );
 
 	private final Object mOwner;
 
@@ -40,39 +32,7 @@ public class Requester extends Handler
 
 	private static ExecutorService mExecutor = null;
 
-	public class ApiContext
-	{
-		public final long mSequenceNo;
-
-		public int mRC = N_RC_OK, nRetries = 0;
-
-		public String mState = "new";
-
-		public ApiNode mApiNode = null;
-
-		public String mMethod = null;
-
-		public JSONObject mJsRequest = null, mJsReply = null;
-
-		public Handler mReplyTo = null;
-
-		public ApiCallback mResultHandler = null;
-
-		public ApiContext(Handler replyTo, ApiNode apiNode, String stMethod, JSONObject jsRequest,JSONObject jsReply,
-						  ApiCallback resultHandler)
-		{
-			mSequenceNo = ++Requester.nRequestSequence;
-			mReplyTo = replyTo;
-			mApiNode = apiNode;
-			mMethod = stMethod;
-			mJsRequest = jsRequest;
-			mJsReply = ( jsReply != null ? jsReply : new JSONObject());
-			mResultHandler = resultHandler;
-		}
-
-	};
-
-	private Stack<ApiContext> mContextStack = new Stack<>();
+	private final Stack<ApiContext> mContextStack = new Stack<>();
 
 	private final HashMap<String,ApiNode> mApiMap = new HashMap<String,ApiNode>();
 
@@ -93,17 +53,18 @@ public class Requester extends Handler
 				// Remember, there is only one looper thread, as far as this handler is concerned, 
 				// it handles the request invocations, it is not possible for two threads to be here...
 				//
-				ApiContext apiContext = (ApiContext) msg.obj;
+				ApiContext ac = (ApiContext) msg.obj;
 
 				Log.d("Requester", "invoke start");
 
-				apiContext.mState = "invoked";
+				ac.mState = "invoked";
 
-				mContextStack.push(apiContext);
+				synchronized(mContextStack)
+				{
+					mContextStack.push(ac);
+				}
 
-				apiContext.mApiNode.invokeMethod(apiContext.mMethod,apiContext.mJsRequest,apiContext.mJsReply);
-
-				Log.d("Requester", "invoke complete");
+				ac.invokeNodeMethod();
 			}
 			break;
 
@@ -143,15 +104,6 @@ public class Requester extends Handler
 			apiNode.attachedTo(this,stApiTag);
 			mApiMap.put(apiNode.nodeTag(), apiNode);
 		}
-		return apiNode;
-	}
-
-	public ApiNode attachApiMethod(String stApiTag, ApiMethod apiMethod)
-	{
-		ApiNode apiNode = mApiMap.get(stApiTag);
-
-		apiNode.attachApiMethod(apiMethod);
-
 		return apiNode;
 	}
 
@@ -250,6 +202,13 @@ public class Requester extends Handler
 		return mOwner;
 	}
 
+	public void popApiContext()
+	{
+		synchronized(mContextStack){
+			mContextStack.pop();
+		}
+	}
+
 	public JSONObject callAPI(String stNodeSpec, String[] args)
 	{
 		try
@@ -296,7 +255,7 @@ public class Requester extends Handler
 				jsRequest.put("$args",jsArgs);
 			}
 
-			postRequest(replyTo, jsRequest.toString(),resultHandler);
+			postRequest(replyTo == null ? this : replyTo, jsRequest.toString(),resultHandler);
 		}
 		catch(JSONException e)
 		{
@@ -314,18 +273,18 @@ public class Requester extends Handler
 		return mContextStack.peek().mApiNode;
 	}
 
-	private void execApiContext(final ApiContext apiContext)
+	private void execApiContext(final ApiContext ac)
 	{
 		Message msg = obtainMessage();
 
 		msg.what = N_MSG_REQUEST;
-		msg.obj = apiContext;
+		msg.obj = ac;
 
-		synchronized(apiContext)
+		synchronized(ac)
 		{
 			Log.d("Requester", "sending message....");
 
-			apiContext.mState = "queued";
+			ac.mState = "queued";
 
 			if(!sendMessage(msg))
 				throw new HandlerException("execApiContext: send failed?!");
@@ -338,17 +297,17 @@ public class Requester extends Handler
 			{
 				try
 				{
-					apiContext.wait();
+					ac.wait();
 
 					bExitWait = true;
 
 					Log.d("Requester", "reply wait completed....");
 
-					if(apiContext.mResultHandler != null)
+					if(ac.mResultHandler != null)
 					{
-						Log.d("Requester", "posting the callback....");
+						Log.d("Requester", "posting the func....");
 
-						apiContext.mReplyTo.post(new ParamHelper<ApiContext>(apiContext)
+						ac.mReplyTo.post(new ParamHelper<ApiContext>(ac)
 							{
 								@Override
 								public void run()
@@ -357,7 +316,7 @@ public class Requester extends Handler
 									//
 									try
 									{
-										// So, now in here we are execute the callback in the looper context...
+										// So, now in here we are execute the func in the looper context...
 										// (i.e. a "synchronous" asynchronous request...
 										//
 										if(param().mJsReply.has("$reply"))
@@ -384,11 +343,6 @@ public class Requester extends Handler
 				}
 			}
 		}
-
-		// to get here the incoming apiContext must have been pushed onto the stack...
-		// ...thus, this thread must pop it off.
-		//
-		mContextStack.pop();
 
 		Log.d("Requester", "leaving....");
 	}
@@ -428,89 +382,6 @@ public class Requester extends Handler
 		}
 	}
 
-	public void replyCommit(ApiNode.ReplyCode replyCode, String stReply) throws HandlerException
-	{
-		try
-		{
-			ApiContext ac = apiContext();
-
-			String stMsg = "";
-
-			synchronized(ac)
-			{
-				switch(replyCode)
-				{
-					case CRITICAL_ERROR:
-					{
-						Log.d("Requester","Committing reply with ERROR");
-
-						ac.mRC = N_RC_ERROR;
-
-						stMsg = "Unknown error!";
-					}
-					break;
-
-					case SUCCESS_REQUEST:
-					{
-						Log.d("Requester","Committing reply with SUCCESS");
-
-						ac.mRC = N_RC_OK;
-
-						stMsg = "Unspecified SUCCESS!";
-					}
-					break;
-
-					case WARNING_MESSAGE:
-					{
-						Log.d("Requester","Committing reply with WARNING");
-
-						ac.mRC = N_RC_WARNING;
-
-						stMsg = "Unspecified WARNING!";
-					}
-					break;
-
-					case WARNING_NOTFOUND:
-					{
-						Log.d("Requester","Committing reply with NOTFOUND");
-
-						ac.mRC = N_RC_WARNING_NOTFOUND;
-
-						stMsg = "Unknown NOTFOUND warning!";
-					}
-					break;
-
-					case USER_CANCELLED:
-					{
-						Log.d("Requester","Committing reply with USERCANCEL");
-
-						ac.mRC = N_RC_USER_CANCELLED;
-
-						stMsg = "Unknown,was cancelled by user!";
-					}
-					break;
-
-				}
-
-				ac.mJsReply.put("$rc",ac.mRC);
-
-				if(stReply == null)
-					stReply = stMsg;
-
-				if(!ac.mJsReply.has("$reply"))
-					ac.mJsReply.put("$reply",stReply);
-
-				ac.mState = "done";
-
-				ac.notify();
-			};
-		}
-		catch(JSONException e)
-		{
-			throw new HandlerException(String.format("JSON exception: %s",e.getMessage()));
-		}
-	}
-
 	public void sendRequest(JSONObject jsRequest)
 	{
 		sendRequest(jsRequest.toString());
@@ -540,14 +411,28 @@ public class Requester extends Handler
 
 		Log.d("Requester", "posting asynchronous request...");
 
-		executor().execute(new ParamHelper<ApiContext>(apiContext)
+		if(Thread.currentThread().getId() != getLooper().getThread().getId())
 		{
-			@Override
-			public void run()
+			post(new ParamHelper<ApiContext>(apiContext)
 			{
-				param().mApiNode.requester().execApiContext(param());
-			}
-		});
+				@Override
+				public void run()
+				{
+					param().mApiNode.requester().execApiContext(param());
+				}
+			});
+		}
+		else
+		{
+			executor().execute(new ParamHelper<ApiContext>(apiContext)
+			{
+				@Override
+				public void run()
+				{
+					param().mApiNode.requester().execApiContext(param());
+				}
+			});
+		}
 	}
 
 	public void sendToken(String stToken,Bundle args)
@@ -572,83 +457,41 @@ public class Requester extends Handler
 		mMatchApiSpec = pattern;
 	}
 
-	protected ApiTask loadApiTask(String stTaskSpec)
-	{
-		Log.d("Requester", String.format("Looking for TASK: %s", stTaskSpec));
-
-		try
-		{
-			Class specClass = Class.forName(stTaskSpec);
-
-			Constructor constructor = specClass.getConstructor(Requester.class);
-
-			Object obj = constructor.newInstance(this);
-
-			if(!ApiTask.class.isInstance(obj))
-			{
-				throw new CriticalException(String.format("Class: %s, is not an extension of API task...",stTaskSpec));
-			}
-			return(ApiTask)obj;
-		}
-		catch(ClassNotFoundException e)
-		{
-			throw new CriticalException(String.format("Class not found: %s",e.getMessage()));
-		}
-		catch(NoSuchMethodException e)
-		{
-			throw new CriticalException(String.format("Constructor not found: %s",e.getMessage()));
-		}
-		catch(IllegalAccessException e)
-		{
-			throw new CriticalException(String.format("Constructor not public? : %s",e.getMessage()));
-		}
-		catch(InstantiationException e)
-		{
-			throw new CriticalException(String.format("Constructor/Class not available? : %s",e.getMessage()));
-		}
-		catch(InvocationTargetException e)
-		{
-			throw new CriticalException(String.format("Invocation target error? : %s",e.getMessage()));
-		}
-	}
-
 	private void init()
 	{
-		attachApiNode("Requester", new ApiNode(this){
-			@Override
-			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
-			{
-				switch(stMethod)
-				{
-					case "hasAPI" :
+		attachApiNode("Requester", new ApiNode(this)
+				.attachApiMethod("hasAPI", new ApiMethod(){
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
 					{
-						if(!jsRequest.has("$args"))
+						if(!ac.mJsRequest.has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
-						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+						String stApiSpec = ac.request().getJSONArray("$args").getString(0);
 
 						Log.d("Requester", String.format("Looking for API: %s", stApiSpec ));
 
 						if(mApiMap.containsKey(stApiSpec))
-							replySuccessComplete("found");
+							ac.replySuccessComplete("found");
 						else
-							replySuccessComplete("notfound");
+							ac.replySuccessComplete("notfound");
 					}
-					break;
-
-					case "invokeTASK" :
+				})
+				.attachApiMethod("invokeTASK", new ApiMethod(){
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
 					{
 						boolean bAsync = true;
 
-						if(!jsRequest.has("$args"))
+						if(!ac.request().has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
-						String stTaskSpec = jsRequest.getJSONArray("$args").getString(0);
+						String stTaskSpec = ac.request().getJSONArray("$args").getString(0);
 
-						if(jsRequest.has("$bAsynchronous"))
-							bAsync = jsRequest.getBoolean("$bAsynchronous");
+						if(ac.request().has("$bAsynchronous"))
+							bAsync = ac.request().getBoolean("$bAsynchronous");
 
-						ApiTask apiTask = requester().loadApiTask(stTaskSpec);
+						ApiTask apiTask = ac.loadApiTask(stTaskSpec);
 
 						if(bAsync)
 						{
@@ -658,46 +501,46 @@ public class Requester extends Handler
 						}
 						else
 						{
+							// Post it to run on the looper thread...
+							//
 							post(apiTask);
 						}
-						replySuccessComplete(null);
+						ac.replySuccessComplete(null);
 					}
-					break;
-
-					case "loadAPI" :
+				})
+				.attachApiMethod("loadAPI", new ApiMethod()
+				{
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
 					{
-						if(!jsRequest.has("$args"))
+						if(!ac.request().has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
-						String stApiSpec = jsRequest.getJSONArray("$args").getString(0);
+						String stApiSpec = ac.request().getJSONArray("$args").getString(0);
 
-						ApiTask apiTask = requester().loadApiTask(stApiSpec);
+						ApiTask apiTask = ac.loadApiTask(stApiSpec);
 
 						post(apiTask);
 					}
-					break;
-
-					case "dropAPI" :
+				})
+				.attachApiMethod("dropAPI", new ApiMethod()
+				{
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
 					{
-						if(!jsRequest.has("$args"))
+						if(!ac.request().has("$args"))
 							throw new HandlerException("Requester: request has no $args!");
 
-						String stApiTag = jsRequest.getJSONArray("$args").getString(0);
+						String stApiTag = ac.request().getJSONArray("$args").getString(0);
 
 						Log.d("Requester", String.format("Drop Mutiny API: %s", stApiTag ));
 
 						dropApi(stApiTag);
 
-						replySuccessComplete(null);
+						ac.replySuccessComplete(null);
 					}
-					break;
-
-					default:
-						throw new HandlerException("unknown method");
-
-				}
-			}
-		});
+				})
+		);
 	}
 
 	public Requester(Object owner)

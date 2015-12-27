@@ -3,11 +3,12 @@ package com.denizensoft.appcompatlib;
 import android.os.Bundle;
 import android.view.View;
 import com.denizensoft.dbclient.DbClient;
+import com.denizensoft.droidlib.ApiContext;
+import com.denizensoft.droidlib.ApiMethod;
 import com.denizensoft.droidlib.ApiNode;
 import com.denizensoft.jlib.FatalException;
 import com.denizensoft.jlib.LibException;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 abstract public class DbClientFragment extends AppFragment
 {
@@ -31,68 +32,99 @@ abstract public class DbClientFragment extends AppFragment
 	{
 		super.onViewCreated(view, savedInstanceState);
 
-		mAppInterface.requester().attachApiNode("dbclient",new ApiNode(this){
-			@Override
-			public void builtins(String stMethod, JSONObject jsRequest, JSONObject jsReply) throws JSONException, LibException
-			{
-				ApiNode.ReplyCode replyCode = ApiNode.ReplyCode.SUCCESS_REQUEST;
-
-				if(mDbClient != null)
-				{
-					if(stMethod.equals("dropbyid"))
+		mAppInterface.requester().attachApiNode("dbc",new ApiNode(this)
+				.attachApiMethod("dropById", new ApiMethod()
 					{
-						mDbClient.jsonDropById(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("insertrows"))
-					{
-						replyCode = mDbClient.jsonInsertRows(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("querybycolumn"))
-					{
-						replyCode = mDbClient.jsonQueryByColumn(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("querybycolumn"))
-					{
-						replyCode = mDbClient.jsonQueryByColumn(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("querybyid"))
-					{
-						replyCode = mDbClient.jsonQueryById(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("querybyselect"))
-					{
-						replyCode = mDbClient.jsonQuerySelect(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("querybysql"))
-					{
-						replyCode = mDbClient.jsonQuerySQL(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("updatebyid"))
-					{
-						replyCode = mDbClient.jsonUpdateByRowId(jsRequest, jsReply);
-					}
-					else if(stMethod.equals("refresh-all-maps"))
-					{
-						mDbClient.refreshAllQueryMaps();
-					}
-					else if(stMethod.equals("stash-state-token"))
-					{
-						try
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
 						{
-							String stToken = jsRequest.getString("$token"), stValue = jsRequest.getString("$value");
-
-							mDbClient.stashStateTokenString(stToken, stValue);
+							mDbClient.jsonDropById(ac.request(), ac.reply());
+							ac.replySuccessComplete(null);
 						}
-						catch(JSONException e)
+					})
+				.attachApiMethod("insertRows", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
 						{
-							throw new FatalException("JSON exception in DbClientFragemnt");
+							ApiContext.ReplyCode rc = mDbClient.jsonInsertRows(ac.request(), ac.reply());
+							ac.replyCommit(rc,null);
 						}
-					}
+					})
+				.attachApiMethod("queryByColumn", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							ApiContext.ReplyCode rc = mDbClient.jsonQueryByColumn(ac.request(), ac.reply());
+							ac.replyCommit(rc,null);
+						}
+					})
+				.attachApiMethod("queryById", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							ApiContext.ReplyCode rc = mDbClient.jsonQueryById(ac.request(), ac.reply());
+							ac.replyCommit(rc,null);
+						}
+					})
+				.attachApiMethod("queryBySelect", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							ApiContext.ReplyCode rc = mDbClient.jsonQuerySelect(ac.request(), ac.reply());
+							ac.replyCommit(rc,null);
+						}
+					})
+				.attachApiMethod("querySQL", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							ApiContext.ReplyCode rc = mDbClient.jsonQuerySQL(ac.request(), ac.reply());
+							ac.replyCommit(rc,null);
+						}
+					})
+				.attachApiMethod("updateById", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							ApiContext.ReplyCode rc = mDbClient.jsonUpdateByRowId(ac.request(), ac.reply());
+							ac.replyCommit(rc,null);
+						}
+					})
+				.attachApiMethod("refreshAllMaps", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							mDbClient.refreshAllQueryMaps();
+							ac.replyCommit(ApiContext.ReplyCode.SUCCESS_REQUEST,null);
+						}
+					})
+				.attachApiMethod("stashStateToken", new ApiMethod()
+					{
+						@Override
+						public void func(ApiContext ac) throws JSONException, LibException
+						{
+							try
+							{
+								String
+										stToken = ac.request().getString("$token"),
+										stValue = ac.request().getString("$value");
 
-					replyCommit(replyCode, null);
-				}
-			}
-		});
+								mDbClient.stashStateTokenString(stToken, stValue);
+							}
+							catch(JSONException e)
+							{
+								throw new FatalException("JSON exception in DbClientFragemnt");
+							}
+						}
+					})
+		);
 	}
 
 	public DbClientFragment()

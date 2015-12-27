@@ -9,7 +9,7 @@ public abstract class ApiTask implements Runnable
 
 	final protected Requester mRequester;
 
-	abstract protected void invokeTask();
+	abstract protected void taskFunc();
 
 	public long taskThreadId()
 	{
@@ -20,7 +20,7 @@ public abstract class ApiTask implements Runnable
 	final public void run()
 	{
 		mTaskThreadId = Thread.currentThread().getId();
-		invokeTask();
+		taskFunc();
 	}
 
 	protected Requester requester()
