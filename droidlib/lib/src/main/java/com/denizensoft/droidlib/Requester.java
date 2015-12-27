@@ -411,19 +411,19 @@ public class Requester extends Handler
 
 		Log.d("Requester", "posting asynchronous request...");
 
-		if(Thread.currentThread().getId() != getLooper().getThread().getId())
-		{
-			post(new ParamHelper<ApiContext>(apiContext)
-			{
-				@Override
-				public void run()
-				{
-					param().mApiNode.requester().execApiContext(param());
-				}
-			});
-		}
-		else
-		{
+//		if(Thread.currentThread().getId() != getLooper().getThread().getId())
+//		{
+//			post(new ParamHelper<ApiContext>(apiContext)
+//			{
+//				@Override
+//				public void run()
+//				{
+//					param().mApiNode.requester().execApiContext(param());
+//				}
+//			});
+//		}
+//		else
+//		{
 			executor().execute(new ParamHelper<ApiContext>(apiContext)
 			{
 				@Override
@@ -432,7 +432,7 @@ public class Requester extends Handler
 					param().mApiNode.requester().execApiContext(param());
 				}
 			});
-		}
+//		}
 	}
 
 	public void sendToken(String stToken,Bundle args)

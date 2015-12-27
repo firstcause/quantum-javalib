@@ -75,7 +75,7 @@ public class ApiContext
 
 			Constructor constructor = specClass.getConstructor(Requester.class);
 
-			Object obj = constructor.newInstance(this);
+			Object obj = constructor.newInstance(requester());
 
 			if(!ApiTask.class.isInstance(obj))
 			{
