@@ -1,11 +1,4 @@
-package com.denizensoft.insurgent;
-
-import com.denizensoft.jlib.Function;
-import com.denizensoft.jlib.LibException;
-import com.denizensoft.jlib.NotFoundException;
-import com.denizensoft.jlib.ParserException;
-import com.denizensoft.jlib.ScopeContext;
-import com.denizensoft.jlib.Variable;
+package com.denizensoft.jlib;
 
 import java.util.ArrayList;
 
