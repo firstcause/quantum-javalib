@@ -1,7 +1,5 @@
 package com.denizensoft.jlib;
 
-import com.denizensoft.jlib.LibException;
-
 public class ParserException extends LibException
 {
 	public ParserException()
