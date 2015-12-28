@@ -273,78 +273,84 @@ public class Requester extends Handler
 		return mContextStack.peek().mApiNode;
 	}
 
-	private void execApiContext(final ApiContext ac)
+	private void execApiContext(ApiContext ac)
 	{
 		Message msg = obtainMessage();
 
 		msg.what = N_MSG_REQUEST;
 		msg.obj = ac;
 
-		synchronized(ac)
+		// Thus, only a single external thread may make apiContext requests on
+		// this requester at a time...
+		//
+		synchronized(this)
 		{
-			Log.d("Requester", "sending message....");
-
-			ac.mState = "queued";
-
-			if(!sendMessage(msg))
-				throw new HandlerException("execApiContext: send failed?!");
-
-			Log.d("Requester", "context queued, starting wait....");
-
-			boolean bExitWait = false;
-
-			while(!bExitWait)
+			synchronized(ac)
 			{
-				try
+				Log.d("Requester", "sending message....");
+
+				ac.mState = "queued";
+
+				if(!sendMessage(msg))
+					throw new HandlerException("execApiContext: send failed?!");
+
+				Log.d("Requester", "context queued, starting wait....");
+
+				boolean bThreadWait = true;
+
+				while(bThreadWait)
 				{
-					ac.wait();
-
-					bExitWait = true;
-
-					Log.d("Requester", "reply wait completed....");
-
-					if(ac.mResultHandler != null)
+					try
 					{
-						Log.d("Requester", "posting the func....");
+						ac.wait();
 
-						ac.mReplyTo.post(new ParamHelper<ApiContext>(ac)
-							{
-								@Override
-								public void run()
-								{
-									// Whilst this bit is executed in the looper thread context
-									//
-									try
-									{
-										// So, now in here we are execute the func in the looper context...
-										// (i.e. a "synchronous" asynchronous request...
-										//
-										if(param().mJsReply.has("$reply"))
-										{
-											param().mResultHandler.fnCallback(param().mRC,param().mJsReply.getString("$reply"),
-													param().mJsReply);
-										}
-										else
-										{
-											param().mResultHandler.fnCallback(param().mRC, null, param().mJsReply);
-										}
-									}
-									catch(JSONException e)
-									{
-										throw new HandlerException("JSON exception!",e);
-									}
-								}
-							});
+						bThreadWait = false;
+
+						Log.d("Requester", "reply wait completed....");
+					}
+					catch(InterruptedException e)
+					{
+						Log.d("Requester", "reply wait interrupted, restarting....");
 					}
 				}
-				catch(InterruptedException e)
+
+				if(ac.mResultHandler != null)
 				{
-					Log.d("Requester", "reply wait interrupted, restarting....");
+					Log.d("Requester", "posting the func....");
+
+					ac.mReplyTo.post(new ParamHelper<ApiContext>(ac)
+					{
+						@Override
+						public void run()
+						{
+							// Whilst this bit is executed in the looper thread context
+							//
+							try
+							{
+								// So, now in here we are execute the func in the looper context...
+								// (i.e. a "synchronous" asynchronous request...
+								//
+								if(param().mJsReply.has("$reply"))
+								{
+									param().mResultHandler.fnCallback(param().mRC,param().mJsReply.getString("$reply"),
+											param().mJsReply);
+								}
+								else
+								{
+									param().mResultHandler.fnCallback(param().mRC, null, param().mJsReply);
+								}
+							}
+							catch(JSONException e)
+							{
+								throw new HandlerException("JSON exception!",e);
+							}
+						}
+					});
 				}
 			}
-		}
 
-		Log.d("Requester", "leaving....");
+			Log.d("Requester", "leaving....");
+		}
 	}
 
 	private ApiContext prepareContext(Handler replyTo, String stJSON, JSONObject jsReply, ApiCallback resultHandler)
