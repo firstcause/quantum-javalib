@@ -1,5 +1,8 @@
 package com.denizensoft.droidlib;
 
+import android.util.Log;
+import org.json.JSONException;
+
 /**
  * Created by sjm on 12/17/15.
  */
@@ -9,7 +12,7 @@ public abstract class ApiTask implements Runnable
 
 	final protected Requester mRequester;
 
-	abstract protected void taskFunc();
+	abstract protected void taskFunc() throws JSONException;
 
 	public long taskThreadId()
 	{
@@ -20,7 +23,17 @@ public abstract class ApiTask implements Runnable
 	final public void run()
 	{
 		mTaskThreadId = Thread.currentThread().getId();
-		taskFunc();
+
+		Log.d("ApiTask",String.format("invoked on thread: %s",Thread.currentThread().getName()));
+
+		try
+		{
+			taskFunc();
+		}
+		catch(JSONException e)
+		{
+			throw new HandlerException(String.format("ApiTask: JSON exception: %s",e.getMessage()));
+		}
 	}
 
 	protected Requester requester()

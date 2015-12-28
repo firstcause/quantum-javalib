@@ -411,28 +411,14 @@ public class Requester extends Handler
 
 		Log.d("Requester", "posting asynchronous request...");
 
-//		if(Thread.currentThread().getId() != getLooper().getThread().getId())
-//		{
-//			post(new ParamHelper<ApiContext>(apiContext)
-//			{
-//				@Override
-//				public void run()
-//				{
-//					param().mApiNode.requester().execApiContext(param());
-//				}
-//			});
-//		}
-//		else
-//		{
-			executor().execute(new ParamHelper<ApiContext>(apiContext)
+		executor().execute(new ParamHelper<ApiContext>(apiContext)
+		{
+			@Override
+			public void run()
 			{
-				@Override
-				public void run()
-				{
-					param().mApiNode.requester().execApiContext(param());
-				}
-			});
-//		}
+				param().mApiNode.requester().execApiContext(param());
+			}
+		});
 	}
 
 	public void sendToken(String stToken,Bundle args)
@@ -505,7 +491,25 @@ public class Requester extends Handler
 							//
 							post(apiTask);
 						}
-						ac.replySuccessComplete(null);
+
+						if(!ac.request().has("$bDontReplyOnInvoke"))
+							ac.replySuccessComplete(null);
+					}
+				})
+				.attachApiMethod("sleep", new ApiMethod(){
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
+					{
+						if(!ac.request().has("$args"))
+							throw new HandlerException("Requester: request has no $args!");
+
+						ac.request().put("$interval",ac.request().getJSONArray("$args").getInt(0));
+
+						ApiTask apiTask = ac.loadApiTask(getClass().getPackage().getName()+".ApiSleep");
+
+						// Post on a new thread...
+						//
+						executor().execute(apiTask);
 					}
 				})
 				.attachApiMethod("loadAPI", new ApiMethod()
