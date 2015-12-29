@@ -7,7 +7,7 @@ import android.support.v4.app.FragmentStatePagerAdapter;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TabFragmentStateAdapter extends FragmentStatePagerAdapter
+public class TabPagerAdapter extends FragmentStatePagerAdapter
 {
 	List<String> stTitles = new ArrayList<String>();
 
@@ -39,7 +39,7 @@ public class TabFragmentStateAdapter extends FragmentStatePagerAdapter
 		return mFragments.size();
 	}
 
-	public TabFragmentStateAdapter(FragmentManager fm)
+	public TabPagerAdapter(FragmentManager fm)
 	{
 		super(fm);
 	}
