@@ -191,7 +191,7 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 		webSettings.setBuiltInZoomControls(false);
 		webSettings.setSupportZoom(true);
 
-		mAppInterface.requester().attachApiNode("WebView",new ApiNode(this)
+		ApiNode apiNode = mAppInterface.requester().attachApiNode(null,new ApiNode(this)
 				.attachApiMethod("loadURL", new ApiMethod()
 					{
 						@Override
@@ -203,6 +203,8 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 						}
 					})
 		);
+
+		mAppInterface.requester().sendToken(String.format("__sidescreen_populate:%s",apiNode.nodeTag()),null);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
