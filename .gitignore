@@ -1,0 +1,7 @@
+*.class
+workspace.xml
+build/
+.gradle/
+.metadata/
+out/
+*/.idea/libraries
