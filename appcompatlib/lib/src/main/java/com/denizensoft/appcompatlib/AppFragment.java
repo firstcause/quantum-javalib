@@ -6,10 +6,8 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
-import com.denizensoft.droidlib.*;
-import com.denizensoft.jlib.LibException;
-import org.json.JSONException;
+import com.denizensoft.droidlib.ResultListener;
+import com.denizensoft.droidlib.UpdateNotifier;
 
 import java.util.Observable;
 import java.util.Observer;
@@ -40,38 +38,6 @@ public class AppFragment extends Fragment implements Observer,ResultListener
 		mAppActivity = (AppActivity)view.getContext();
 
 		mAppInterface = (AppActivity)view.getContext();
-
-		mAppInterface.requester().attachApiNode("AppFragment",new ApiNode(this)
-				.attachApiMethod("showToast", new ApiMethod()
-				{
-					@Override
-					public void func(ApiContext ac) throws JSONException, LibException
-					{
-						String stMessage = null;
-						try
-						{
-							stMessage = ac.request().getString("$message");
-
-							Toast.makeText(mAppInterface.appContext(), stMessage, Toast.LENGTH_LONG).show();
-
-							ac.replySuccessComplete(null);
-						}
-						catch(JSONException e)
-						{
-							throw new HandlerException(String.format("JSON exception during: %s",e.getMessage()));
-						}
-					}
-				})
-				.attachApiMethod("restartActivity", new ApiMethod()
-				{
-					@Override
-					public void func(ApiContext ac) throws JSONException, LibException
-					{
-						mAppInterface.restartActivity();
-
-						ac.replySuccessComplete(null);
-					}
-				}));
 	}
 	
 	@Override
@@ -129,11 +95,6 @@ public class AppFragment extends Fragment implements Observer,ResultListener
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// new AppFragment methods
 	//
-	public Populator allocatePopulator(String stParameter)
-	{
-		return null;
-	}
-
 	public boolean doOnBackPressed()
 	{
 		// default don't use...

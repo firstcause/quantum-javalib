@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.util.Log;
 import com.denizensoft.jlib.CriticalException;
 import com.denizensoft.jlib.FatalException;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -45,6 +46,24 @@ public class ApiContext
 	protected Handler mReplyTo = null;
 
 	protected ApiCallback mResultHandler = null;
+
+	public JSONArray args()
+	{
+		JSONArray args = null;
+
+		if(mJsRequest.has("$args"))
+		{
+			try
+			{
+				args = mJsRequest.getJSONArray("$args");
+			}
+			catch(JSONException e)
+			{
+				throw new FatalException("ApiContext: request has no args!");
+			}
+		}
+		return args;
+	}
 
 	public void invokeNodeMethod()
 	{

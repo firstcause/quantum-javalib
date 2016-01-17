@@ -15,6 +15,8 @@ import java.util.TimeZone;
 
 public class WebAppFragment extends DbClientFragment implements JsApiInterface
 {
+	private ApiNode mWebViewApi = null;
+
 	protected class JsPopupWebViewChrome extends WebChromeClient
 	{
 		@Override
@@ -135,22 +137,6 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 	// AppFragment overrides
 	//
 	@Override
-	public Populator allocatePopulator(String stParameter)
-	{
-		return new Populator(stParameter)
-		{
-			@Override
-			public void run()
-			{
-				String stUrlSpec = String.format("%s/%s",stHtmlFolder,parameterString());
-
-				webView().loadUrl(stUrlSpec);
-			}
-
-		};
-	}
-
-	@Override
 	public boolean doOnBackPressed()
 	{
 		if(mWebView.canGoBack())
@@ -191,20 +177,20 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 		webSettings.setBuiltInZoomControls(false);
 		webSettings.setSupportZoom(true);
 
-		ApiNode apiNode = mAppInterface.requester().attachApiNode(null,new ApiNode(this)
+		mWebViewApi = mAppInterface.requester().attachApiNode(null,new ApiNode(this)
 				.attachApiMethod("loadURL", new ApiMethod()
 					{
 						@Override
 						public void func(ApiContext ac) throws JSONException, LibException
 						{
-							String stPageSpec = String.format("%s/%s",stHtmlFolder,ac.request().getString("$pagespec"));
+							String stPageSpec = String.format("%s/%s",stHtmlFolder,ac.request().getJSONArray("$args").get(0));
 
 							webView().loadUrl(stPageSpec);
+
+							ac.replySuccessComplete(null);
 						}
 					})
 		);
-
-		mAppInterface.requester().sendToken(String.format("__sidescreen_populate:%s",apiNode.nodeTag()),null);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,6 +199,11 @@ public class WebAppFragment extends DbClientFragment implements JsApiInterface
 	public WebView webView()
 	{
 		return mWebView;
+	}
+
+	protected ApiNode webViewNode()
+	{
+		return mWebViewApi;
 	}
 
 	public WebAppFragment()

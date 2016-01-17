@@ -2,6 +2,7 @@ package com.denizensoft.appcompatlib;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -10,11 +11,13 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.Patterns;
+import android.widget.Toast;
 import com.denizensoft.dbclient.DbClient;
 import com.denizensoft.droidlib.*;
 import com.denizensoft.jlib.FatalException;
@@ -75,6 +78,44 @@ abstract public class AppActivity extends AppCompatActivity implements AppInterf
 					return;
 			}
 		}
+
+	}
+
+	@Override
+	protected void onPostCreate(@Nullable Bundle savedInstanceState)
+	{
+		super.onPostCreate(savedInstanceState);
+
+		requester().attachApiNode("AppFragment",new ApiNode(this)
+				.attachApiMethod("showToast", new ApiMethod()
+				{
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
+					{
+						String stMessage = null;
+						try
+						{
+							stMessage = ac.request().getString("$message");
+
+							Toast.makeText((Activity)ac.node().nodeOwner(), stMessage, Toast.LENGTH_LONG).show();
+
+							ac.replySuccessComplete(null);
+						}
+						catch(JSONException e)
+						{
+							throw new HandlerException(String.format("JSON exception during: %s",e.getMessage()));
+						}
+					}
+				})
+				.attachApiMethod("restartActivity", new ApiMethod()
+				{
+					@Override
+					public void func(ApiContext ac) throws JSONException, LibException
+					{
+						restartActivity();
+						ac.replySuccessComplete(null);
+					}
+				}));
 
 	}
 

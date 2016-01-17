@@ -149,11 +149,11 @@ public class Requester extends Handler
 		return mApiMap.containsKey(stClass);
 	}
 
-	protected Executor executor()
+	static public Executor executor()
 	{
 		if(mExecutor == null)
 		{
-			Log.d("Requester", "allocating executor service....");
+			Log.d("Requester", "allocating the static executor service....");
 
 			mExecutor = Executors.newCachedThreadPool();
 		}

@@ -5,7 +5,7 @@ import android.app.Dialog;
 /**
  * Created by sjm on 3/21/2015.
  */
-public interface EndDialogListener
+public interface ApiDialogListener
 {
 	void onConfirm(Dialog dlg, ApiContext apiContext);
 
