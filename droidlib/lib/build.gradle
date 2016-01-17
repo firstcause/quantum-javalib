@@ -28,6 +28,12 @@ android {
 		targetCompatibility JavaVersion.VERSION_1_7
 	}
 
+	android {
+		lintOptions {
+			abortOnError false
+		}
+	}
+
 	lintOptions {
 		disable 'TrulyRandom','SetJavaScriptEnabled'
 	}
@@ -35,7 +41,17 @@ android {
 
 dependencies {
 	compile fileTree(dir: 'libs', include: ['*.jar'])
+
+	// Android ...
+	//
 	compile(group: 'com.android.support', name: 'appcompat-v7', version: '23.1.1')
+
+	// Java ...
+	//
+	compile(group: 'org.mozilla', name: 'rhino', version: '1.7R5')
+	compile(group: 'org.apache.commons', name: 'commons-lang3', version: '3.4')
+
+
 	compile(group: 'com.denizensoft.jlib', name: 'jlib-1-7', version: '1.0.0-SNAPSHOT', changing: true)
 }
 
