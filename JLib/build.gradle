@@ -1,11 +1,11 @@
 buildscript {
 	repositories {
 		maven {
-			url "${artifactory_contextUrl}/plugins-release"
+			url "${System.getenv('ARTIFACTORY_URL')}plugins-release"
 
 			credentials {
-				username = "${artifactory_user}"
-				password = "${artifactory_password}"
+				username = "${System.getenv('ARTIFACTORY_USER')}"
+				password = "${System.getenv('ARTIFACTORY_PWD')}"
 			}
 		}
 
@@ -26,18 +26,18 @@ allprojects {
 		mavenLocal()
 
 		maven {
-			url "${artifactory_contextUrl}/libs-snapshot"
+			url "${System.getenv('ARTIFACTORY_URL')}/libs-snapshot"
 			credentials {
-				username = "${artifactory_user}"
-				password = "${artifactory_password}"
+				username = "${System.getenv('ARTIFACTORY_USER')}"
+				password = "${System.getenv('ARTIFACTORY_PWD')}"
 			}
 		}
 
 		maven {
-			url "${artifactory_contextUrl}/libs-release"
+			url "${System.getenv('ARTIFACTORY_URL')}/libs-release"
 			credentials {
-				username = "${artifactory_user}"
-				password = "${artifactory_password}"
+				username = "${System.getenv('ARTIFACTORY_USER')}"
+				password = "${System.getenv('ARTIFACTORY_PWD')}"
 			}
 		}
 

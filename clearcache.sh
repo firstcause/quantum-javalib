@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 echo Clearing the cache...
 find . -name "libraries" -type d -exec rm -frv "{}/*.xml" \;
 find . -name "build" -type d -exec rm -frv "{}" \;

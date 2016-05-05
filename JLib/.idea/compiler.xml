@@ -18,5 +18,9 @@
         <processorPath useClasspath="true" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="jlib-1-7_main" target="1.7" />
+      <module name="jlib-1-7_test" target="1.7" />
+    </bytecodeTargetLevel>
   </component>
 </project>

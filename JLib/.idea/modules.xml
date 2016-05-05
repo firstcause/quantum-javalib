@@ -2,9 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/JLib.iml" filepath="$PROJECT_DIR$/JLib.iml" />
-      <module fileurl="file://$PROJECT_DIR$/lib/jlib-1-7.iml" filepath="$PROJECT_DIR$/lib/jlib-1-7.iml" />
-      <module fileurl="file://$PROJECT_DIR$/lib/lib.iml" filepath="$PROJECT_DIR$/lib/lib.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/JLib.iml" filepath="$PROJECT_DIR$/.idea/modules/JLib.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/lib/jlib-1-7.iml" filepath="$PROJECT_DIR$/.idea/modules/lib/jlib-1-7.iml" group="jlib-1-7" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/lib/jlib-1-7_main.iml" filepath="$PROJECT_DIR$/.idea/modules/lib/jlib-1-7_main.iml" group="jlib-1-7" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/lib/jlib-1-7_test.iml" filepath="$PROJECT_DIR$/.idea/modules/lib/jlib-1-7_test.iml" group="jlib-1-7" />
     </modules>
   </component>
 </project>

@@ -47,14 +47,16 @@ publishing {
 }
 
 artifactory {
-    contextUrl = "${artifactory_contextUrl}"
+    contextUrl = "${System.getenv('ARTIFACTORY_URL')}"
 
     publish {
 
         repository {
             repoKey = version.endsWith('-SNAPSHOT') ? 'libs-snapshot-local' : 'libs-release-local'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
+            username = "${System.getenv('ARTIFACTORY_USER')}"
+            password = "${System.getenv('ARTIFACTORY_PWD')}"
+//            username = "${artifactory_user}"
+//            password = "${artifactory_password}"
         }
 
         defaults {
@@ -96,22 +98,28 @@ artifactory {
     resolve {
         repository {
             repoKey = 'libs-snapshot'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
+            username = "${System.getenv('ARTIFACTORY_USER')}"
+            password = "${System.getenv('ARTIFACTORY_PWD')}"
+//            username = "${artifactory_user}"
+//            password = "${artifactory_password}"
             maven = true
         }
 
         repository {
             repoKey = 'libs-release'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
+            username = "${System.getenv('ARTIFACTORY_USER')}"
+            password = "${System.getenv('ARTIFACTORY_PWD')}"
+//            username = "${artifactory_user}"
+//            password = "${artifactory_password}"
             maven = true
         }
 
         repository {
             repoKey = 'jcenter'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
+            username = "${System.getenv('ARTIFACTORY_USER')}"
+            password = "${System.getenv('ARTIFACTORY_PWD')}"
+//            username = "${artifactory_user}"
+//            password = "${artifactory_password}"
             maven = true
         }
     }

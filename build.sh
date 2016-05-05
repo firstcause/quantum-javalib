@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 echo Invoked with args: $1 $2 $3 $4
 
 if [[ $# = 0 ]];
