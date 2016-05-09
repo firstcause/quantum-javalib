@@ -21,6 +21,8 @@
     <bytecodeTargetLevel>
       <module name="jlib-1-7_main" target="1.7" />
       <module name="jlib-1-7_test" target="1.7" />
+      <module name="lib_main" target="1.7" />
+      <module name="lib_test" target="1.7" />
     </bytecodeTargetLevel>
   </component>
 </project>

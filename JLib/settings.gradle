@@ -16,5 +16,3 @@ include 'api'
 include 'services:webservice'
 */
 include ':lib'
-findProject(':lib')?.name = 'jlib-1-7'
-
